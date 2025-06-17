@@ -4,6 +4,7 @@ use std::{cmp::Ordering, collections::BTreeSet, env::consts::FAMILY, iter::Once}
 pub mod cpu;
 pub mod types;
 pub mod inst;
+pub mod config;
 
 #[cfg(test)]
 mod tests {

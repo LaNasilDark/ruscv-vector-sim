@@ -1,0 +1,24 @@
+[functional_units.interger_alu]
+latency = 1 # The arithmetic logic unit usually has low latency.
+
+[functional_units.interger_multiplier]
+latency = 3
+
+[functional_units.float_alu]
+latency = 3
+
+[functional_units.float_multiplier]
+latency = 6 
+
+[functional_units.interger_divider]
+latency = 6
+
+[functional_units.float_divider]
+latency = 10 
+
+[functional_units.branch_unit]
+latency = 1 
+
+[memory_units.load_store_unit]
+latency = 2 
+max_access_width = 8 #bytes

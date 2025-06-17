@@ -1,6 +1,24 @@
+use std::{cell::RefCell, rc::Rc};
+
+use fetch::Fetch;
+use function_unit::FunctionUnit;
+use memory_unit::LoadStoreUnit;
+
 pub mod fetch;
 pub mod execute;
 pub mod vector_config;
+pub mod function_unit;
+pub mod register;
+pub mod memory_unit;
+
+// 虽然
+struct Cpu {
+    fetch_unit : Fetch,
+    function_unit : Vec<Rc<RefCell<FunctionUnit>>>,
+    memory_unit : LoadStoreUnit
+}
+
+
 
 #[cfg(test)]
 mod tests {
