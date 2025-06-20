@@ -1,0 +1,3 @@
+[submodule "vendor/riscv-isa"]
+	path = vendor/riscv-isa
+	url = http://10.26.1.50:3002/sigongzi/riscv-isa.git
