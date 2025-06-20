@@ -5,7 +5,7 @@ pub mod cpu;
 pub mod types;
 pub mod inst;
 pub mod config;
-
+pub mod extract_file;
 #[cfg(test)]
 mod tests {
     use std::f32::consts::E;
