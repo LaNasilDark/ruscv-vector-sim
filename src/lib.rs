@@ -1,7 +1,7 @@
 use core::num;
 use std::{cmp::Ordering, collections::BTreeSet, env::consts::FAMILY, iter::Once};
 
-pub mod cpu;
+pub mod sim;
 pub mod types;
 pub mod inst;
 pub mod config;
@@ -10,7 +10,7 @@ pub mod extract_file;
 mod tests {
     use std::f32::consts::E;
 
-    use crate::inst::{Destination, Instruction, MemoryPlace, Resource};
+    use crate::inst::{Destination, FuncInstruction, MemoryPlace, Resource};
 
     use simplelog::*;
 
@@ -28,9 +28,9 @@ mod tests {
     use std::io::Read;
     use std::path::PathBuf;
     use log::{info, warn, error};
-    use crate::cpu::vector_config::{Configuration, VectorConfig, HardwareConfig};
-    use crate::cpu::fetch::Fetch;
-    use crate::cpu::execute::Execute;
+    use crate::sim::vector_config::{Configuration, VectorConfig, HardwareConfig};
+    use crate::sim::fetch::Fetch;
+    use crate::sim::execute::Execute;
     fn read_file(elf_path : &str, start_line: usize, end_line : usize) -> anyhow::Result<()> {
         
         // 读取 ELF 文件内容
@@ -78,264 +78,264 @@ mod tests {
         
         Ok(())
     }
-    fn jacobi_instruction_stream(vlen_bytes : usize) -> Vec<Instruction> {
-        vec![
-            Instruction::new(
-                Destination::new(MemoryPlace::ScalarRegister(20), 8),
-                vec![
-                    Resource::new(MemoryPlace::Memory, 8)
-                ],
-                1,
-                "ld	s4, 0(s0)"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::ScalarRegister(15), 8),
-                vec![
-                    Resource::new(MemoryPlace::Memory, 8)
-                ],
-                1,
-                "ld	a5, -8(s0)"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::ScalarRegister(10), 8), 
-                vec![
-                    Resource::new(MemoryPlace::ScalarRegister(15), 8),
-                    Resource::new(MemoryPlace::ScalarRegister(31), 8)
-                ],
-                1,
-                "add a0, a5, t6"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::FloatingPointRegister(15), 8), 
-                vec![
-                    Resource::new(MemoryPlace::Memory, 8),
-                ],
-                1,
-                "fld	fa5, 0(a0)"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::ScalarRegister(15), 8), 
-                vec![
-                    Resource::new(MemoryPlace::ScalarRegister(15), 8),
-                    Resource::new(MemoryPlace::ScalarRegister(18), 8),
-                ],
-                1,
-                "add a5, a5, s2"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::FloatingPointRegister(14), 8), 
-                vec![
-                    Resource::new(MemoryPlace::Memory, 8),
-                ],
-                1,
-                "fld fa4, 0(a5)"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::ScalarRegister(20), 8), 
-                vec![
-                    Resource::new(MemoryPlace::ScalarRegister(20), 8), 
-                    Resource::new(MemoryPlace::ScalarRegister(19), 8), 
-                ],
-                1,
-                "add	s4, s4, s3"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::VectorRegister(11), vlen_bytes), 
-                vec![
-                    Resource::new(MemoryPlace::Memory, vlen_bytes)
-                ],
-                1,
-                "vle64.v	v11, (s4)"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::VectorRegister(12), vlen_bytes), 
-                vec![
-                    Resource::new(MemoryPlace::VectorRegister(9), vlen_bytes),
-                ],
-                1,
-                "vfslide1up.vf	v12, v9, fa5"
-            ),
+    // fn jacobi_instruction_stream(vlen_bytes : usize) -> Vec<Instruction> {
+    //     vec![
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::ScalarRegister(20), 8),
+    //             vec![
+    //                 Resource::new(MemoryPlace::Memory, 8)
+    //             ],
+    //             1,
+    //             "ld	s4, 0(s0)"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::ScalarRegister(15), 8),
+    //             vec![
+    //                 Resource::new(MemoryPlace::Memory, 8)
+    //             ],
+    //             1,
+    //             "ld	a5, -8(s0)"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::ScalarRegister(10), 8), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::ScalarRegister(15), 8),
+    //                 Resource::new(MemoryPlace::ScalarRegister(31), 8)
+    //             ],
+    //             1,
+    //             "add a0, a5, t6"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::FloatingPointRegister(15), 8), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::Memory, 8),
+    //             ],
+    //             1,
+    //             "fld	fa5, 0(a0)"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::ScalarRegister(15), 8), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::ScalarRegister(15), 8),
+    //                 Resource::new(MemoryPlace::ScalarRegister(18), 8),
+    //             ],
+    //             1,
+    //             "add a5, a5, s2"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::FloatingPointRegister(14), 8), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::Memory, 8),
+    //             ],
+    //             1,
+    //             "fld fa4, 0(a5)"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::ScalarRegister(20), 8), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::ScalarRegister(20), 8), 
+    //                 Resource::new(MemoryPlace::ScalarRegister(19), 8), 
+    //             ],
+    //             1,
+    //             "add	s4, s4, s3"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::VectorRegister(11), vlen_bytes), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::Memory, vlen_bytes)
+    //             ],
+    //             1,
+    //             "vle64.v	v11, (s4)"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::VectorRegister(12), vlen_bytes), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::VectorRegister(9), vlen_bytes),
+    //             ],
+    //             1,
+    //             "vfslide1up.vf	v12, v9, fa5"
+    //         ),
 
-            Instruction::new(
-                Destination::new(MemoryPlace::VectorRegister(13), vlen_bytes), 
-                vec![
-                    Resource::new(MemoryPlace::VectorRegister(9), vlen_bytes),
-                ],
-                1,
-                "vfslide1down.vf	v13, v9, fa4"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::VectorRegister(12), vlen_bytes), 
-                vec![
-                    Resource::new(MemoryPlace::VectorRegister(12), vlen_bytes),
-                    Resource::new(MemoryPlace::VectorRegister(9), vlen_bytes),
-                ],
-                3, 
-                "vfadd.vv	v12, v9, v12"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::VectorRegister(12), vlen_bytes), 
-                vec![
-                    Resource::new(MemoryPlace::VectorRegister(12), vlen_bytes),
-                    Resource::new(MemoryPlace::VectorRegister(13), vlen_bytes),
-                ],
-                3, 
-                "vfadd.vv	v12, v12, v13"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::ScalarRegister(10), 8), 
-                vec![
-                    Resource::new(MemoryPlace::Memory, 8),
-                ],
-                1, 
-                "ld	a0, 0(a4)"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::VectorRegister(10), vlen_bytes), 
-                vec![
-                    Resource::new(MemoryPlace::VectorRegister(11), vlen_bytes),
-                    Resource::new(MemoryPlace::VectorRegister(10), vlen_bytes),
-                ],
-                3, 
-                "vfadd.vv	v10, v11, v10"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::VectorRegister(10), vlen_bytes), 
-                vec![
-                    Resource::new(MemoryPlace::VectorRegister(12), vlen_bytes),
-                    Resource::new(MemoryPlace::VectorRegister(10), vlen_bytes),
-                ],
-                3, 
-                "vfadd.vv	v10, v12, v10"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::VectorRegister(10), vlen_bytes), 
-                vec![
-                    Resource::new(MemoryPlace::VectorRegister(10), vlen_bytes),
-                    Resource::new(MemoryPlace::VectorRegister(8), vlen_bytes),
-                ],
-                4, 
-                "vfmul.vv	v10, v12, v10"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::ScalarRegister(10), 8), 
-                vec![
-                    Resource::new(MemoryPlace::ScalarRegister(19), 8),
-                    Resource::new(MemoryPlace::ScalarRegister(10), 8),
-                ],
-                1, 
-                "add	a0, a0, s3"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::Memory, vlen_bytes), 
-                vec![
-                    Resource::new(MemoryPlace::VectorRegister(10), vlen_bytes)
-                ],
-                1, 
-                "vse64.v	v10, (a0)"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::ScalarRegister(9), 8), 
-                vec![
-                    Resource::new(MemoryPlace::ScalarRegister(9), 8),
-                ],
-                1, 
-                "addi	s1, s1, -1"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::ScalarRegister(8), 8), 
-                vec![
-                    Resource::new(MemoryPlace::ScalarRegister(8), 8),
-                ],
-                1, 
-                "addi	s0, s0, 8"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::ScalarRegister(14), 8), 
-                vec![
-                    Resource::new(MemoryPlace::ScalarRegister(14), 8),
-                ],
-                1, 
-                "addi	a4, a4, 8"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::VectorRegister(10), vlen_bytes), 
-                vec![
-                    Resource::new(MemoryPlace::VectorRegister(9), vlen_bytes)
-                ],
-                1, 
-                "vmv1r.v	v10, v9"
-            ),
-            Instruction::new(
-                Destination::new(MemoryPlace::VectorRegister(9), vlen_bytes), 
-                vec![
-                    Resource::new(MemoryPlace::VectorRegister(11), vlen_bytes)
-                ],
-                1, 
-                "vmv.v.v	v9, v11"
-            ),
-        ]
-    }
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::VectorRegister(13), vlen_bytes), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::VectorRegister(9), vlen_bytes),
+    //             ],
+    //             1,
+    //             "vfslide1down.vf	v13, v9, fa4"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::VectorRegister(12), vlen_bytes), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::VectorRegister(12), vlen_bytes),
+    //                 Resource::new(MemoryPlace::VectorRegister(9), vlen_bytes),
+    //             ],
+    //             3, 
+    //             "vfadd.vv	v12, v9, v12"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::VectorRegister(12), vlen_bytes), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::VectorRegister(12), vlen_bytes),
+    //                 Resource::new(MemoryPlace::VectorRegister(13), vlen_bytes),
+    //             ],
+    //             3, 
+    //             "vfadd.vv	v12, v12, v13"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::ScalarRegister(10), 8), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::Memory, 8),
+    //             ],
+    //             1, 
+    //             "ld	a0, 0(a4)"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::VectorRegister(10), vlen_bytes), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::VectorRegister(11), vlen_bytes),
+    //                 Resource::new(MemoryPlace::VectorRegister(10), vlen_bytes),
+    //             ],
+    //             3, 
+    //             "vfadd.vv	v10, v11, v10"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::VectorRegister(10), vlen_bytes), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::VectorRegister(12), vlen_bytes),
+    //                 Resource::new(MemoryPlace::VectorRegister(10), vlen_bytes),
+    //             ],
+    //             3, 
+    //             "vfadd.vv	v10, v12, v10"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::VectorRegister(10), vlen_bytes), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::VectorRegister(10), vlen_bytes),
+    //                 Resource::new(MemoryPlace::VectorRegister(8), vlen_bytes),
+    //             ],
+    //             4, 
+    //             "vfmul.vv	v10, v12, v10"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::ScalarRegister(10), 8), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::ScalarRegister(19), 8),
+    //                 Resource::new(MemoryPlace::ScalarRegister(10), 8),
+    //             ],
+    //             1, 
+    //             "add	a0, a0, s3"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::Memory, vlen_bytes), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::VectorRegister(10), vlen_bytes)
+    //             ],
+    //             1, 
+    //             "vse64.v	v10, (a0)"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::ScalarRegister(9), 8), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::ScalarRegister(9), 8),
+    //             ],
+    //             1, 
+    //             "addi	s1, s1, -1"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::ScalarRegister(8), 8), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::ScalarRegister(8), 8),
+    //             ],
+    //             1, 
+    //             "addi	s0, s0, 8"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::ScalarRegister(14), 8), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::ScalarRegister(14), 8),
+    //             ],
+    //             1, 
+    //             "addi	a4, a4, 8"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::VectorRegister(10), vlen_bytes), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::VectorRegister(9), vlen_bytes)
+    //             ],
+    //             1, 
+    //             "vmv1r.v	v10, v9"
+    //         ),
+    //         Instruction::new(
+    //             Destination::new(MemoryPlace::VectorRegister(9), vlen_bytes), 
+    //             vec![
+    //                 Resource::new(MemoryPlace::VectorRegister(11), vlen_bytes)
+    //             ],
+    //             1, 
+    //             "vmv.v.v	v9, v11"
+    //         ),
+    //     ]
+    // }
 
-    fn test_jacobi_with_config(element_number : usize, sew : usize, lane_number : usize) {
-        info!("This is a test for jacobi execution");
-        let config = Configuration::new(
-            VectorConfig::new(element_number, sew, 1),
-            HardwareConfig::new(element_number * sew, lane_number)
-        );
+    // fn test_jacobi_with_config(element_number : usize, sew : usize, lane_number : usize) {
+    //     info!("This is a test for jacobi execution");
+    //     let config = Configuration::new(
+    //         VectorConfig::new(element_number, sew, 1),
+    //         HardwareConfig::new(element_number * sew, lane_number)
+    //     );
 
-        let target_bytes = config.vector_config.total_length();
+    //     let target_bytes = config.vector_config.total_length();
         
-        let inst_memory = jacobi_instruction_stream(target_bytes);
+    //     let inst_memory = jacobi_instruction_stream(target_bytes);
 
-        let mut fetch = Fetch::new();
-        fetch.load(inst_memory);
+    //     let mut fetch = Fetch::new();
+    //     fetch.load(inst_memory);
 
-        // 这里的16和32 都是临时设置的
-        let mut execute = Execute::new(16, 32, config);
+    //     // 这里的16和32 都是临时设置的
+    //     let mut execute = Execute::new(16, 32, config);
         
-        // 模拟运行的部分
-        let mut num_cycle : usize = 0;
+    //     // 模拟运行的部分
+    //     let mut num_cycle : usize = 0;
 
-        while !fetch.is_empty() || !execute.is_empty() {
-            info!("Now simulate the cycle {}", num_cycle);
+    //     while !fetch.is_empty() || !execute.is_empty() {
+    //         info!("Now simulate the cycle {}", num_cycle);
             
 
-            execute.execute_serial();
+    //         execute.execute_serial();
 
-            let inst = fetch.fetch();
-            match inst {
-                Some(inst) => {
-                    info!("Fetch instruction: {:?}", inst);
-                    match execute.push(inst) {
-                        Ok(_) => {
-                            info!("Push instruction to execute queue success");
-                            fetch.next_pc();
-                        },
-                        Err(s) => {
-                            info!("Push instruction to execute queue failed: {}", s);
-                        }
-                    }
-                },
-                None => {}
-            }
-            num_cycle += 1;
-        }
+    //         let inst = fetch.fetch();
+    //         match inst {
+    //             Some(inst) => {
+    //                 info!("Fetch instruction: {:?}", inst);
+    //                 match execute.push(inst) {
+    //                     Ok(_) => {
+    //                         info!("Push instruction to execute queue success");
+    //                         fetch.next_pc();
+    //                     },
+    //                     Err(s) => {
+    //                         info!("Push instruction to execute queue failed: {}", s);
+    //                     }
+    //                 }
+    //             },
+    //             None => {}
+    //         }
+    //         num_cycle += 1;
+    //     }
 
-        info!("The simulation is finished");
-        info!("The number of cycles is {num_cycle}");
-    }
-    #[test]
-    fn test_jacobi() {
-        init();
-        // 目前写一个合适的前端还是有点复杂
-        // read_file("./appendix/jacobi-2d_vector.exe", 0x10d16, 0x10d60);
-        test_jacobi_with_config(4, 64, 4);
-        test_jacobi_with_config(8, 64, 4);
-        test_jacobi_with_config(16, 64, 4);
-        test_jacobi_with_config(32, 64, 4);
-        test_jacobi_with_config(64, 64, 4);
-    }
+    //     info!("The simulation is finished");
+    //     info!("The number of cycles is {num_cycle}");
+    // }
+    // #[test]
+    // fn test_jacobi() {
+    //     init();
+    //     // 目前写一个合适的前端还是有点复杂
+    //     // read_file("./appendix/jacobi-2d_vector.exe", 0x10d16, 0x10d60);
+    //     test_jacobi_with_config(4, 64, 4);
+    //     test_jacobi_with_config(8, 64, 4);
+    //     test_jacobi_with_config(16, 64, 4);
+    //     test_jacobi_with_config(32, 64, 4);
+    //     test_jacobi_with_config(64, 64, 4);
+    // }
     
 
 }

@@ -1,12 +1,12 @@
 use std::{cmp::{min,max}, collections::VecDeque, sync::{Arc, Mutex}};
-use crate::inst::{Instruction, MemoryPlace};
+use crate::inst::{FuncInstruction, MemoryPlace};
 
 use super::vector_config::{self, Configuration, VectorConfig};
 use log::{info, debug, error, warn};
 
 
 pub struct ExecuteInst {
-    inst : Instruction,
+    inst : FuncInstruction,
     forwarding : Vec<Option<Arc<Mutex<usize>>>>,
     current_length : Vec<Arc<Mutex<usize>>>,
     issue_pos : usize,
@@ -48,7 +48,7 @@ impl Execute {
 
     // 让我想想指令需要什么
     // 需要知道自己的源都在哪
-    pub fn push(&mut self, inst : Instruction) -> Result<(), String> {
+    pub fn push(&mut self, inst : FuncInstruction) -> Result<(), String> {
         if self.execute_queue.len() < self.max_queue_size {
             let mut v = vec![];
             for r in inst.resource.iter() {

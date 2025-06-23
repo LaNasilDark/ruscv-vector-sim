@@ -1,5 +1,13 @@
 use std::{fmt, sync::{Arc, Mutex}};
 
+use crate::sim::function_unit::FunctionUnitKeyType;
+pub(crate) mod func;
+pub(crate) mod mem;
+
+use func::FuncInst;
+use riscv_isa::Instruction;
+use mem::MemInst;
+
 #[derive(Debug,Clone, Copy, PartialEq, Eq)]
 pub enum MemoryPlace {
     VectorRegister(usize),
@@ -14,24 +22,49 @@ pub struct Resource {
 }
 
 
-#[derive(Debug,Clone, PartialEq)]
+#[derive(Debug,Clone, PartialEq, Copy)]
 pub struct Destination {
     pub target : MemoryPlace,
     pub target_bytes : usize,
 
 }
+#[derive(Debug,Clone, PartialEq, Eq)]
+pub enum Inst {
+    Func(FuncInst),
+    Mem(MemInst)
+}
 
-#[derive(Clone, PartialEq)]
-pub struct Instruction {
+impl Inst {
+    pub fn new(riscv_isa : Instruction) -> Inst {
+        // If you need more instructions, please extend this table
+        match riscv_isa {
+            Instruction::LD {..} | Instruction::FLD{..} | Instruction::VLE{..} | Instruction::VSE {..} => Inst::Mem(MemInst::new(riscv_isa)),
+            _ => Inst::Func(FuncInst::new(riscv_isa))
+        }
+ 
+    }
+
+}
+
+pub struct MemInstruction {
     pub destination : Destination,
     pub resource : Vec<Resource>,
     pub operation_cycle : usize,
-    raw_string : String
+    pub raw : riscv_isa::Instruction
 }
 
-impl fmt::Debug for Instruction {
+#[derive(Clone, PartialEq)]
+pub struct FuncInstruction {
+    pub destination : Destination,
+    pub resource : Vec<Resource>,
+    pub operation_cycle : usize,
+    pub key_type : FunctionUnitKeyType,
+    raw : riscv_isa::Instruction,
+}
+
+impl fmt::Debug for FuncInstruction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.raw_string)
+        write!(f, "{:?}", self.raw)
     }
 }
 
@@ -52,19 +85,34 @@ impl Destination {
         }
     }
 }
-impl Instruction {
-    pub fn new(destination : Destination, resource : Vec<Resource>, operation_cycle : usize, raw_string : &str) -> Instruction {
-        Instruction {
+impl FuncInstruction {
+    fn key_type_helper(raw : riscv_isa::Instruction) -> FunctionUnitKeyType {
+        // If you need more instruction type to recognize, please add this table
+        match raw {
+            riscv_isa::Instruction::VFADD_VV {..}
+            => FunctionUnitKeyType::VectorAlu,
+            riscv_isa::Instruction::VFMUL_VV {..}
+            => FunctionUnitKeyType::VectorMul,
+            riscv_isa::Instruction::VFSLIDE1UP_VF {..} | riscv_isa::Instruction::VFSLIDE1DOWN_VF{..}
+            => FunctionUnitKeyType::VectorSlide,
+
+            _ => FunctionUnitKeyType::IntegerAlu
+        }
+    }
+    pub fn new(destination : Destination, resource : Vec<Resource>, operation_cycle : usize, raw : riscv_isa::Instruction) -> FuncInstruction {
+        FuncInstruction {
             resource,
             destination,
             operation_cycle,
-            raw_string : raw_string.to_string() 
+            raw,
+            key_type : FuncInstruction::key_type_helper(raw),
         }
     }
 }
 
-trait Inst {
-    fn try_get_forwarding(&self, forwarding_source : Vec<MemoryPlace>);
-    fn try_execute(&self);
-    fn try_write_back(&self);
+
+impl FuncInstruction {
+    pub fn get_key_type(&self) -> FunctionUnitKeyType {
+        self.key_type
+    }
 }

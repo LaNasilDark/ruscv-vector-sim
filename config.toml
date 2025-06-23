@@ -1,22 +1,22 @@
-[functional_units.interger_alu]
+[function_units.interger_alu]
 latency = 1 # The arithmetic logic unit usually has low latency.
 
-[functional_units.interger_multiplier]
+[function_units.interger_multiplier]
 latency = 3
 
-[functional_units.float_alu]
+[function_units.float_alu]
 latency = 3
 
-[functional_units.float_multiplier]
+[function_units.float_multiplier]
 latency = 6 
 
-[functional_units.interger_divider]
+[function_units.interger_divider]
 latency = 6
 
-[functional_units.float_divider]
+[function_units.float_divider]
 latency = 10 
 
-[functional_units.branch_unit]
+[function_units.branch_unit]
 latency = 1 
 
 [memory_units.load_store_unit]

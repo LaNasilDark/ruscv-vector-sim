@@ -4,35 +4,35 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct SimulatorConfig {
-    functional_units: FunctionalUnits,
-    memory_units: MemoryUnits,
+    pub function_units: FunctionUnits,
+    pub memory_units: MemoryUnits,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct FunctionalUnits {
-    interger_alu: Unit,
-    interger_multiplier: Unit,
-    float_alu: Unit,
-    float_multiplier: Unit,
-    interger_divider: Unit,
-    float_divider: Unit,
-    branch_unit: Unit,
+pub struct FunctionUnits {
+    pub interger_alu: Unit,
+    pub interger_multiplier: Unit,
+    pub float_alu: Unit,
+    pub float_multiplier: Unit,
+    pub interger_divider: Unit,
+    pub float_divider: Unit,
+    pub branch_unit: Unit,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Unit {
-    latency: u32,
+    pub latency: u32,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct MemoryUnits {
-    load_store_unit: LoadStoreUnit,
+    pub load_store_unit: LoadStoreUnit,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct LoadStoreUnit {
-    latency: u32,
-    max_access_width: u32,
+    pub latency: u32,
+    pub max_access_width: u32,
 }
 
 impl SimulatorConfig {

@@ -1,10 +1,10 @@
 
 
 use crate::types::*;
-use crate::inst::Instruction;
+use crate::inst::{FuncInstruction, Inst};
 pub struct Fetch {
-    pc : Addr,
-    inst_memory : Vec<Instruction>
+    pc : usize,
+    inst_memory : Vec<riscv_isa::Instruction>
 }
 
 impl Fetch {
@@ -15,22 +15,25 @@ impl Fetch {
         }
     }
 
-    pub fn load(&mut self, inst_memory : Vec<Instruction>) {
+    pub fn load(&mut self, inst_memory : Vec<riscv_isa::Instruction>) {
         self.inst_memory = inst_memory;
     }
-    pub fn fetch(&self) -> Option<Instruction>{
-        if (self.pc / 4) as usize >= self.inst_memory.len() {
+    pub fn fetch(&self) -> Option<Inst>{
+        if self.pc >= self.inst_memory.len() {
             return None;
+        } else {
+
+            Some(Inst::new(self.inst_memory[self.pc]))
         }
-        let inst = self.inst_memory[(self.pc / 4) as usize].clone();
-        Some(inst)
+
+
     }
-    pub fn update_pc(&mut self, new_pc : Addr) {
+    pub fn update_pc(&mut self, new_pc : usize) {
         self.pc = new_pc;
     }
 
     pub fn next_pc(&mut self) {
-        self.update_pc(self.pc + 4);
+        self.update_pc(self.pc + 1);
     }
 
     pub fn is_empty(&self) -> bool {

@@ -1,87 +1,87 @@
-06:02:49 [DEBUG] (1) ruscv_vector_sim: Simulator config: SimulatorConfig { functional_units: FunctionalUnits { interger_alu: Unit { latency: 1 }, interger_multiplier: Unit { latency: 3 }, float_alu: Unit { latency: 3 }, float_multiplier: Unit { latency: 6 }, interger_divider: Unit { latency: 6 }, float_divider: Unit { latency: 10 }, branch_unit: Unit { latency: 1 } }, memory_units: MemoryUnits { load_store_unit: LoadStoreUnit { latency: 2, max_access_width: 8 } } }
-06:02:49 [DEBUG] (1) ruscv_vector_sim: the start_addr is 10ca8, end_addr is 10d10
-06:02:49 [DEBUG] (1) ruscv_vector_sim::extract_file: Opening file: ./appendix/jacobi-2d_vector.exe
-06:02:49 [DEBUG] (1) ruscv_vector_sim::extract_file: ELF 文件信息:
-06:02:49 [DEBUG] (1) ruscv_vector_sim::extract_file:   架构: 243
-06:02:49 [DEBUG] (1) ruscv_vector_sim::extract_file:   入口点: 0x10bd0
-06:02:49 [DEBUG] (1) ruscv_vector_sim::extract_file:   程序头数量: 4
-06:02:49 [DEBUG] (1) ruscv_vector_sim::extract_file:   节头数量: 25
-06:02:49 [DEBUG] (1) ruscv_vector_sim::extract_file: 
+05:20:34 [DEBUG] (1) ruscv_vector_sim: Simulator config: SimulatorConfig { functional_units: FunctionalUnits { interger_alu: Unit { latency: 1 }, interger_multiplier: Unit { latency: 3 }, float_alu: Unit { latency: 3 }, float_multiplier: Unit { latency: 6 }, interger_divider: Unit { latency: 6 }, float_divider: Unit { latency: 10 }, branch_unit: Unit { latency: 1 } }, memory_units: MemoryUnits { load_store_unit: LoadStoreUnit { latency: 2, max_access_width: 8 } } }
+05:20:34 [DEBUG] (1) ruscv_vector_sim: the start_addr is 10ca8, end_addr is 10d10
+05:20:34 [DEBUG] (1) ruscv_vector_sim::extract_file: Opening file: ./appendix/jacobi-2d_vector.exe
+05:20:34 [DEBUG] (1) ruscv_vector_sim::extract_file: ELF 文件信息:
+05:20:34 [DEBUG] (1) ruscv_vector_sim::extract_file:   架构: 243
+05:20:34 [DEBUG] (1) ruscv_vector_sim::extract_file:   入口点: 0x10bd0
+05:20:34 [DEBUG] (1) ruscv_vector_sim::extract_file:   程序头数量: 4
+05:20:34 [DEBUG] (1) ruscv_vector_sim::extract_file:   节头数量: 25
+05:20:34 [DEBUG] (1) ruscv_vector_sim::extract_file: 
 .text 节信息:
-06:02:49 [DEBUG] (1) ruscv_vector_sim::extract_file:   地址: 0x10120
-06:02:49 [DEBUG] (1) ruscv_vector_sim::extract_file:   大小: 372932 字节
-06:02:49 [DEBUG] (1) ruscv_vector_sim::extract_file:  test的前32位字节是 0x41 0x11 0x21 0x45 0x06 0xe4 0xef 0x20 0x12 0x1c 0x97 0x27 0x06 0x00 0x93 0x87 0xe7 0xe8 0x1c 0xe1 0x17 0x36 0x02 0x00 0x13 0x06 0x46 0xc0 0x97 0x25 0x06 0x00 
-06:02:49 [DEBUG] (1) ruscv_vector_sim::extract_file:   从10ca8 到 10d10 的输出是：
-06:02:49 [DEBUG] (1) ruscv_vector_sim::extract_file: 13 c5 fe ff 2d 9d 57 7f 85 0d 18 6a 00 66 93 99 3e 00 4e 97 87 74 07 02 33 07 34 01 07 75 07 02 9b 8f fe ff b3 07 df 01 18 62 8e 0f b3 04 f4 01 9c 20 13 99 37 00 4a 94 18 20 4e 97 87 75 07 02 57 d6 a7 3a d7 56 a7 3e 57 16 a6 02 57 96 c6 02 98 66 d7 95 95 02 d7 95 c5 02 d7 15 b4 92 4e 97 a7 75 07 02 72 87 1e 84 
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code fffec513
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 19, funct3 4, funct7 127
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes XORI { rd: 10, rs1: 29, imm: -1 }
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_ADDW { rd: 10, rs2: 11 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 0d857f57
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 87, funct3 7, funct7 6
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VSETVLI { rd: 30, rs1: 10, sew: 64, lmul: LMUL { vlmul: 0 }, tail: Agnostic, mask: Agnostic }
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_LD { rd: 14, rs1: 12, offset: 16 }
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_LD { rd: 8, rs1: 12, offset: 8 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 003e9993
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 19, funct3 1, funct7 0
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes SLLI { rd: 19, rs1: 29, shamt: 3 }
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_ADD { rd: 14, rs2: 19 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 02077487
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 7, funct3 7, funct7 1
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VLE64 { vrd: 9, rs1: 14 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 01340733
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 51, funct3 0, funct7 0
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes ADD { rd: 14, rs1: 8, rs2: 19 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 02077507
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 7, funct3 7, funct7 1
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VLE64 { vrd: 10, rs1: 14 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code fffe8f9b
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 27, funct3 0, funct7 127
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes ADDIW { rd: 31, rs1: 29, imm: -1 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 01df07b3
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 51, funct3 0, funct7 0
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes ADD { rd: 15, rs1: 30, rs2: 29 }
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_LD { rd: 14, rs1: 12, offset: 0 }
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_SLLI { rd: 31, shamt: 3 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 01f404b3
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 51, funct3 0, funct7 0
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes ADD { rd: 9, rs1: 8, rs2: 31 }
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_FLD { frd: 15, rs1: 9, offset: 0 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 00379913
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 19, funct3 1, funct7 0
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes SLLI { rd: 18, rs1: 15, shamt: 3 }
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_ADD { rd: 8, rs2: 18 }
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_FLD { frd: 14, rs1: 8, offset: 0 }
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_ADD { rd: 14, rs2: 19 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 02077587
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 7, funct3 7, funct7 1
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VLE64 { vrd: 11, rs1: 14 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 3aa7d657
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 87, funct3 5, funct7 29
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VFSLIDE1UP_VF { vrd: 12, frs1: 15, vrs2: 10 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 3ea756d7
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 87, funct3 5, funct7 31
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VFSLIDE1DOWN_VF { vrd: 13, frs1: 14, vrs2: 10 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 02a61657
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 87, funct3 1, funct7 1
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VFADD_VV { vrd: 12, vrs1: 12, vrs2: 10 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 02c69657
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 87, funct3 1, funct7 1
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VFADD_VV { vrd: 12, vrs1: 13, vrs2: 12 }
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_LD { rd: 14, rs1: 13, offset: 8 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 029595d7
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 87, funct3 1, funct7 1
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VFADD_VV { vrd: 11, vrs1: 11, vrs2: 9 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 02c595d7
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 87, funct3 1, funct7 1
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VFADD_VV { vrd: 11, vrs1: 11, vrs2: 12 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 92b415d7
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 87, funct3 1, funct7 73
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VFMUL_VV { vrd: 11, vrs1: 8, vrs2: 11 }
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_ADD { rd: 14, rs2: 19 }
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: code 020775a7
-06:02:49 [DEBUG] (1) riscv_isa::decode::full: opcode 39, funct3 7, funct7 1
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VSE64 { vrd: 11, rs1: 14 }
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_MV { rd: 14, rs2: 28 }
-06:02:49 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_MV { rd: 8, rs2: 7 }
-06:02:49 [DEBUG] (1) ruscv_vector_sim: the instructions are [XORI { rd: 10, rs1: 29, imm: -1 }, ADDW { rd: 10, rs1: 10, rs2: 11 }, VSETVLI { rd: 30, rs1: 10, sew: 64, lmul: LMUL { vlmul: 0 }, tail: Agnostic, mask: Agnostic }, LD { rd: 14, rs1: 12, offset: 16 }, LD { rd: 8, rs1: 12, offset: 8 }, SLLI { rd: 19, rs1: 29, shamt: 3 }, ADD { rd: 14, rs1: 14, rs2: 19 }, VLE64 { vrd: 9, rs1: 14 }, ADD { rd: 14, rs1: 8, rs2: 19 }, VLE64 { vrd: 10, rs1: 14 }, ADDIW { rd: 31, rs1: 29, imm: -1 }, ADD { rd: 15, rs1: 30, rs2: 29 }, LD { rd: 14, rs1: 12, offset: 0 }, SLLI { rd: 31, rs1: 31, shamt: 3 }, ADD { rd: 9, rs1: 8, rs2: 31 }, FLD { frd: 15, rs1: 9, offset: 0 }, SLLI { rd: 18, rs1: 15, shamt: 3 }, ADD { rd: 8, rs1: 8, rs2: 18 }, FLD { frd: 14, rs1: 8, offset: 0 }, ADD { rd: 14, rs1: 14, rs2: 19 }, VLE64 { vrd: 11, rs1: 14 }, VFSLIDE1UP_VF { vrd: 12, frs1: 15, vrs2: 10 }, VFSLIDE1DOWN_VF { vrd: 13, frs1: 14, vrs2: 10 }, VFADD_VV { vrd: 12, vrs1: 12, vrs2: 10 }, VFADD_VV { vrd: 12, vrs1: 13, vrs2: 12 }, LD { rd: 14, rs1: 13, offset: 8 }, VFADD_VV { vrd: 11, vrs1: 11, vrs2: 9 }, VFADD_VV { vrd: 11, vrs1: 11, vrs2: 12 }, VFMUL_VV { vrd: 11, vrs1: 8, vrs2: 11 }, ADD { rd: 14, rs1: 14, rs2: 19 }, VSE64 { vrd: 11, rs1: 14 }, ADD { rd: 14, rs1: 0, rs2: 28 }, ADD { rd: 8, rs1: 0, rs2: 7 }]
+05:20:34 [DEBUG] (1) ruscv_vector_sim::extract_file:   地址: 0x10120
+05:20:34 [DEBUG] (1) ruscv_vector_sim::extract_file:   大小: 372932 字节
+05:20:34 [DEBUG] (1) ruscv_vector_sim::extract_file:  test的前32位字节是 0x41 0x11 0x21 0x45 0x06 0xe4 0xef 0x20 0x12 0x1c 0x97 0x27 0x06 0x00 0x93 0x87 0xe7 0xe8 0x1c 0xe1 0x17 0x36 0x02 0x00 0x13 0x06 0x46 0xc0 0x97 0x25 0x06 0x00 
+05:20:34 [DEBUG] (1) ruscv_vector_sim::extract_file:   从10ca8 到 10d10 的输出是：
+05:20:34 [DEBUG] (1) ruscv_vector_sim::extract_file: 13 c5 fe ff 2d 9d 57 7f 85 0d 18 6a 00 66 93 99 3e 00 4e 97 87 74 07 02 33 07 34 01 07 75 07 02 9b 8f fe ff b3 07 df 01 18 62 8e 0f b3 04 f4 01 9c 20 13 99 37 00 4a 94 18 20 4e 97 87 75 07 02 57 d6 a7 3a d7 56 a7 3e 57 16 a6 02 57 96 c6 02 98 66 d7 95 95 02 d7 95 c5 02 d7 15 b4 92 4e 97 a7 75 07 02 72 87 1e 84 
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code fffec513
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 19, funct3 4, funct7 127
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes XORI { rd: 10, rs1: 29, imm: -1 }
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_ADDW { rd: 10, rs2: 11 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 0d857f57
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 87, funct3 7, funct7 6
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VSETVLI { rd: 30, rs1: 10, sew: 64, lmul: LMUL { vlmul: 0 }, tail: Agnostic, mask: Agnostic }
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_LD { rd: 14, rs1: 12, offset: 16 }
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_LD { rd: 8, rs1: 12, offset: 8 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 003e9993
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 19, funct3 1, funct7 0
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes SLLI { rd: 19, rs1: 29, shamt: 3 }
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_ADD { rd: 14, rs2: 19 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 02077487
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 7, funct3 7, funct7 1
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VLE { vrd: 9, rs1: 14, width: 64 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 01340733
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 51, funct3 0, funct7 0
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes ADD { rd: 14, rs1: 8, rs2: 19 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 02077507
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 7, funct3 7, funct7 1
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VLE { vrd: 10, rs1: 14, width: 64 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code fffe8f9b
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 27, funct3 0, funct7 127
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes ADDIW { rd: 31, rs1: 29, imm: -1 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 01df07b3
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 51, funct3 0, funct7 0
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes ADD { rd: 15, rs1: 30, rs2: 29 }
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_LD { rd: 14, rs1: 12, offset: 0 }
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_SLLI { rd: 31, shamt: 3 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 01f404b3
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 51, funct3 0, funct7 0
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes ADD { rd: 9, rs1: 8, rs2: 31 }
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_FLD { frd: 15, rs1: 9, offset: 0 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 00379913
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 19, funct3 1, funct7 0
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes SLLI { rd: 18, rs1: 15, shamt: 3 }
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_ADD { rd: 8, rs2: 18 }
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_FLD { frd: 14, rs1: 8, offset: 0 }
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_ADD { rd: 14, rs2: 19 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 02077587
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 7, funct3 7, funct7 1
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VLE { vrd: 11, rs1: 14, width: 64 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 3aa7d657
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 87, funct3 5, funct7 29
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VFSLIDE1UP_VF { vrd: 12, frs1: 15, vrs2: 10 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 3ea756d7
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 87, funct3 5, funct7 31
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VFSLIDE1DOWN_VF { vrd: 13, frs1: 14, vrs2: 10 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 02a61657
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 87, funct3 1, funct7 1
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VFADD_VV { vrd: 12, vrs1: 12, vrs2: 10 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 02c69657
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 87, funct3 1, funct7 1
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VFADD_VV { vrd: 12, vrs1: 13, vrs2: 12 }
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_LD { rd: 14, rs1: 13, offset: 8 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 029595d7
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 87, funct3 1, funct7 1
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VFADD_VV { vrd: 11, vrs1: 11, vrs2: 9 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 02c595d7
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 87, funct3 1, funct7 1
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VFADD_VV { vrd: 11, vrs1: 11, vrs2: 12 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 92b415d7
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 87, funct3 1, funct7 73
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VFMUL_VV { vrd: 11, vrs1: 8, vrs2: 11 }
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_ADD { rd: 14, rs2: 19 }
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: code 020775a7
+05:20:34 [DEBUG] (1) riscv_isa::decode::full: opcode 39, funct3 7, funct7 1
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is 4 bytes VSE { vrd: 11, rs1: 14, width: 64 }
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_MV { rd: 14, rs2: 28 }
+05:20:34 [DEBUG] (1) riscv_isa::decode: The instruction is compressed C_MV { rd: 8, rs2: 7 }
+05:20:34 [DEBUG] (1) ruscv_vector_sim: the instructions are [XORI { rd: 10, rs1: 29, imm: -1 }, ADDW { rd: 10, rs1: 10, rs2: 11 }, VSETVLI { rd: 30, rs1: 10, sew: 64, lmul: LMUL { vlmul: 0 }, tail: Agnostic, mask: Agnostic }, LD { rd: 14, rs1: 12, offset: 16 }, LD { rd: 8, rs1: 12, offset: 8 }, SLLI { rd: 19, rs1: 29, shamt: 3 }, ADD { rd: 14, rs1: 14, rs2: 19 }, VLE { vrd: 9, rs1: 14, width: 64 }, ADD { rd: 14, rs1: 8, rs2: 19 }, VLE { vrd: 10, rs1: 14, width: 64 }, ADDIW { rd: 31, rs1: 29, imm: -1 }, ADD { rd: 15, rs1: 30, rs2: 29 }, LD { rd: 14, rs1: 12, offset: 0 }, SLLI { rd: 31, rs1: 31, shamt: 3 }, ADD { rd: 9, rs1: 8, rs2: 31 }, FLD { frd: 15, rs1: 9, offset: 0 }, SLLI { rd: 18, rs1: 15, shamt: 3 }, ADD { rd: 8, rs1: 8, rs2: 18 }, FLD { frd: 14, rs1: 8, offset: 0 }, ADD { rd: 14, rs1: 14, rs2: 19 }, VLE { vrd: 11, rs1: 14, width: 64 }, VFSLIDE1UP_VF { vrd: 12, frs1: 15, vrs2: 10 }, VFSLIDE1DOWN_VF { vrd: 13, frs1: 14, vrs2: 10 }, VFADD_VV { vrd: 12, vrs1: 12, vrs2: 10 }, VFADD_VV { vrd: 12, vrs1: 13, vrs2: 12 }, LD { rd: 14, rs1: 13, offset: 8 }, VFADD_VV { vrd: 11, vrs1: 11, vrs2: 9 }, VFADD_VV { vrd: 11, vrs1: 11, vrs2: 12 }, VFMUL_VV { vrd: 11, vrs1: 8, vrs2: 11 }, ADD { rd: 14, rs1: 14, rs2: 19 }, VSE { vrd: 11, rs1: 14, width: 64 }, ADD { rd: 14, rs1: 0, rs2: 28 }, ADD { rd: 8, rs1: 0, rs2: 7 }]
