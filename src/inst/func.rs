@@ -2,7 +2,7 @@ use std::fmt::format;
 
 use riscv_isa::Instruction;
 
-use crate::sim::{function_unit::FunctionUnitKeyType, register::RegisterType};
+use crate::sim::{unit::function_unit::FunctionUnitKeyType, register::RegisterType};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FuncInst {

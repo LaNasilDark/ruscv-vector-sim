@@ -1,6 +1,6 @@
 use std::{fmt, sync::{Arc, Mutex}};
 
-use crate::sim::function_unit::FunctionUnitKeyType;
+use crate::sim::unit::function_unit::FunctionUnitKeyType;
 pub(crate) mod func;
 pub(crate) mod mem;
 

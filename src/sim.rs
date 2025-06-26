@@ -1,86 +1,96 @@
 use std::{cell::RefCell, rc::Rc};
 use std::collections::HashMap;
 use fetch::Fetch;
-use function_unit::{FunctionUnit, FunctionUnitKeyType};
+use unit::function_unit::{FunctionUnit, FunctionUnitKeyType};
+use unit::latency_calculator::calc_func_cycle; // 添加这一行
 use log::debug;
-use memory_unit::LoadStoreUnit;
+use unit::memory_unit::LoadStoreUnit;
 
 use crate::config::SimulatorConfig;
+use crate::sim::register::RegisterTaskHandler;
 use crate::inst::func::FuncInst;
 use crate::inst::mem::{self, MemInst};
 use crate::inst::Inst;
+use crate::sim::register::RegisterFile;
+use crate::sim::unit::buffer::{BufferEvent, BufferEventResult};
+use crate::sim::unit::memory_unit::MemoryUnitKeyType;
+use crate::sim::unit::UnitKeyType;
 pub mod fetch;
-pub mod execute;
-pub mod vector_config;
-pub mod function_unit;
+pub mod unit;
 pub mod register;
-pub mod memory_unit;
 
 // 虽然
 struct Simulator {
     fetch_unit : Fetch,
-    function_unit : HashMap<FunctionUnitKeyType,Box<dyn FunctionUnit>>,
+    function_unit : HashMap<FunctionUnitKeyType,FunctionUnit>,
     memory_unit : LoadStoreUnit,
-    config : SimulatorConfig
-
+    register_file : Rc<RefCell<RegisterFile>>
 }
 
 impl Simulator { 
-    pub fn new(config : SimulatorConfig) -> Simulator {
+    pub fn new() -> Simulator {
+        let config = SimulatorConfig::get_global_config().expect("Global config not initialized");
         Simulator {
             fetch_unit : Fetch::new(),
             function_unit : HashMap::new(),
             memory_unit : LoadStoreUnit::new_from_config(&config.memory_units.load_store_unit),
-            config
+            register_file : Rc::new(RefCell::new(RegisterFile::new()))
         }
     }
 
-    fn calc_func_cycle(config : &SimulatorConfig, inst: &FuncInst) -> u32 {
-        match inst.get_key_type() {
-            FunctionUnitKeyType::IntegerAlu => {
-                config.function_units.interger_alu.latency
+    fn handle_buffer_event(&mut self, key: UnitKeyType, event : BufferEvent) -> BufferEventResult {
+        match key {
+            UnitKeyType::FuncKey(func_key) => {
+                let fu = self.function_unit.get_mut(&func_key).unwrap();
+                
+                fu.handle_buffer_event(event)
             },
-            FunctionUnitKeyType::IntergerDiv => {
-                config.function_units.interger_divider.latency
-            },
-            FunctionUnitKeyType::FloatAlu => {
-                config.function_units.float_alu.latency
-            },
-            FunctionUnitKeyType::FloatDiv => {
-                config.function_units.float_divider.latency
-            },
-            FunctionUnitKeyType::FloatMul => {
-                config.function_units.float_multiplier.latency
-            },
-            FunctionUnitKeyType::VectorAlu => {
-                if inst.is_float() {
-                    config.function_units.float_alu.latency
-                } else {
-                    config.function_units.interger_alu.latency
-                }
-            },
-            FunctionUnitKeyType::VectorDiv => {
-                if inst.is_float() {
-                    config.function_units.float_divider.latency
-                } else {
-                    config.function_units.interger_divider.latency
-                }
-
-            },
-            FunctionUnitKeyType::VectorMul => {
-                if inst.is_float() {
-                    config.function_units.float_multiplier.latency
-                } else {
-                    config.function_units.interger_multiplier.latency
-                }
-            },
-            FunctionUnitKeyType::VectorSlide => {
-                1
+            UnitKeyType::MemKey(mem_key) => {
+                self.memory_unit.handle_buffer_event(mem_key, event)
+                
             }
-
         }
     }
 
+    fn handle_register_file(&mut self) {
+        // self.register_file.iter_mut_tasks()
+        // .for_each(|r| {
+        //         if r.task_queue().len() == 0 {
+        //             return;
+        //         }
+        //         r.init_current_index();
+
+        //         while let Some(e) = r.generate_event() {
+        //             let unit_key = r.get_current_task_unit_key();
+        //             let result = self.handle_buffer_event(unit_key, e);
+        //             r.handle_event_result(result);
+        //         }
+
+        //     }
+        // );
+        let r = self.register_file.clone();
+        let mut register_file = r.borrow_mut();
+        // let mut register_file = self.register_file.borrow_mut();
+        register_file.iter_mut_tasks()
+        .for_each(|r| {
+            if r.task_queue().len() == 0 {
+                return;
+            }
+            r.init_current_index();
+            while let Some(e) = r.generate_event() {
+                let unit_key = r.get_current_task_unit_key();
+                let result = self.handle_buffer_event(unit_key, e);
+                r.handle_event_result(result);
+            }
+        })
+    }
+
+    fn handle_unit_event_queue(&mut self) {
+
+    }
+
+    fn try_issue(&mut self) {
+    }
     pub fn main_sim_loop(&mut self) { 
         
         let mut total_cycle : u32 = 0;
@@ -88,32 +98,19 @@ impl Simulator {
             
             debug!("START THE SIMULATION OF CYCLE {total_cycle}");
             
-            let current_instruction = self.fetch_unit.fetch();
-            debug!("current instruction: {:?}", current_instruction);
-            let inst = current_instruction.clone().unwrap();
-            match inst {
-                Inst::Mem(mem_inst) => {
+            // 第一步，用RegisterFile的内容处理所有Unit的结果区的内容
+            // 在这一步中，从后往前对VectorRegister的队列进行操作，分别为
+            // 如果是写：则从对应Unit处获得结果，且后面没有可能覆盖的读
+            // 如果是读：后面没有可能覆盖的写，则向Unit的缓冲区写入结果
+            self.handle_register_file();
 
-                },
-                Inst::Func(func_inst) => {
-                    let func_unit = self.function_unit.get_mut(&func_inst.get_key_type()).unwrap();
-                    match func_unit.is_occupied() {
-                        true => {
-                            // do nothing if the function unit is occupied
-                        },
-                        false => {
+            // 第二步：更新所有Unit的事件队列
+            self.handle_unit_event_queue();
 
-                            let cycle = Self::calc_func_cycle(&self.config, &func_inst);
-                            func_unit.issue(func_inst, cycle);
-                            self.fetch_unit.next_pc();
-                        }
-
-                    }
-                }
-            }
+            // 第三步：获取新的指令，并查看是否可以issue
+            self.try_issue();
             total_cycle += 1;
         }
-    
     }
 }
 

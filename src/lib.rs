@@ -28,9 +28,7 @@ mod tests {
     use std::io::Read;
     use std::path::PathBuf;
     use log::{info, warn, error};
-    use crate::sim::vector_config::{Configuration, VectorConfig, HardwareConfig};
-    use crate::sim::fetch::Fetch;
-    use crate::sim::execute::Execute;
+
     fn read_file(elf_path : &str, start_line: usize, end_line : usize) -> anyhow::Result<()> {
         
         // 读取 ELF 文件内容

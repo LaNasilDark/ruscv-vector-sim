@@ -22,3 +22,26 @@ latency = 1
 [memory_units.load_store_unit]
 latency = 2 
 max_access_width = 8 #bytes
+read_ports_limit = 2 # This value indicates how many values can be read in parallel.
+write_ports_limit = 2 # This value indicates how many values can be write in parallel.
+
+[vector_config.software]
+vl = 64  # Vector Length，向量长度寄存器值，决定当前向量操作的元素数量
+sew = 32   # Scalar Element Width，标量元素宽度（位），支持8/16/32/64位
+lmul = 1   # Lane Multiplier，通道乘数，定义向量寄存器组的宽度倍数
+
+[vector_config.hardware]
+vlen = 4096 # (in bits) vlen must be greater than or equal sew * vl
+lane_number = 4
+
+[vector_register.ports]
+read_ports_limit = 2 # if you want unlimited ports number, please change this number large enough, like 64 or some number else
+write_ports_limit = 1 # I believe that a write port is absolutely sufficient when the compiler allocates registers reasonably. However, if some odd instruction streams are constructed, increasing this value can also be considered.
+
+
+[buffer]
+input_maximum_size = 64 # in bytes
+result_maximum_size = 64 # in bytes
+
+[register]
+maximum_forward_bytes = 32 # in bytes

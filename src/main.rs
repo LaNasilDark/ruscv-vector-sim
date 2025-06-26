@@ -62,9 +62,39 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config_path = args.config;
 
-    let simulator_config = SimulatorConfig::load_from_file(config_path.as_str())?;
+    // 初始化全局配置
+    SimulatorConfig::init_global_config(config_path.as_str())?;
 
-    debug!("Simulator config: {:?}", simulator_config);
+    if let Some(config) = SimulatorConfig::get_global_config() {
+        debug!("Simulator config: {:?}", config);
+        
+        // 输出向量配置信息
+        debug!("Vector configuration:");
+        debug!("  Software settings:");
+        debug!("    Vector Length (vl): {}", config.vector_config.software.vl);
+        debug!("    Scalar Element Width (sew): {} bits", config.vector_config.software.sew);
+        debug!("    Lane Multiplier (lmul): {}", config.vector_config.software.lmul);
+        debug!("  Hardware settings:");
+        debug!("    Vector Register Length (vlen): {} bits", config.vector_config.hardware.vlen);
+        debug!("    Vector Lane Number: {}", config.vector_config.hardware.lane_number);
+        debug!("  Derived values:");
+        debug!("    Vector Register Size: {} bytes", config.get_vector_register_bytes());
+        debug!("    Element Size: {} bytes", config.get_element_bytes());
+        debug!("    Total Vector Operation Size: {} bytes", config.get_total_vector_bytes());
+        
+        // 验证配置是否有效
+        if config.vector_config.is_valid() {
+            debug!("Vector configuration is valid: vl * sew <= vlen ({} * {} <= {})", 
+                config.vector_config.software.vl,
+                config.vector_config.software.sew,
+                config.vector_config.hardware.vlen);
+        } else {
+            debug!("WARNING: Vector configuration is INVALID: vl * sew > vlen ({} * {} > {})", 
+                config.vector_config.software.vl,
+                config.vector_config.software.sew,
+                config.vector_config.hardware.vlen);
+        }
+    }
 
 
     let target = Target::from_str("RV64IMFDAVZifencei_Zicsr_Zcd").unwrap();

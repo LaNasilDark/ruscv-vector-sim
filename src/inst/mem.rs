@@ -1,4 +1,4 @@
-use crate::sim::{memory_unit, register::{self, RegisterType}};
+use crate::sim::{unit::memory_unit, register::{self, RegisterType}};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MemInst {
