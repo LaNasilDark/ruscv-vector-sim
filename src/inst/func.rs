@@ -3,7 +3,7 @@ use std::fmt::format;
 use riscv_isa::Instruction;
 
 use crate::sim::{unit::function_unit::FunctionUnitKeyType, register::RegisterType};
-
+use crate::config::SimulatorConfig;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FuncInst {
     raw : riscv_isa::Instruction,
@@ -67,5 +67,15 @@ impl FuncInst {
     pub fn is_float(&self) -> bool {
         let s = format!("{:?}", self.raw);
         s.contains("F")
+    }
+    // 需要处理的长度，如果是scalar，这个值是8，否则是vlen / 8
+    pub fn total_process_bytes(&self) -> u32 {
+        if self.resource.iter().any(|v| matches!(v, RegisterType::VectorRegister(_))) {
+            // 从全局获得vlen的信息
+            let config = SimulatorConfig::get_global_config().expect("Global config not initialized");
+            config.get_vector_register_using_bytes()
+        } else {
+            8
+        }
     }
 }

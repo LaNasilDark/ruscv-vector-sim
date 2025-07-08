@@ -4,6 +4,7 @@ use crate::sim::unit::function_unit::FunctionUnitKeyType;
 pub(crate) mod func;
 pub(crate) mod mem;
 
+use crate::config::SimulatorConfig;
 use func::FuncInst;
 use riscv_isa::Instruction;
 use mem::MemInst;
@@ -53,20 +54,7 @@ pub struct MemInstruction {
     pub raw : riscv_isa::Instruction
 }
 
-#[derive(Clone, PartialEq)]
-pub struct FuncInstruction {
-    pub destination : Destination,
-    pub resource : Vec<Resource>,
-    pub operation_cycle : usize,
-    pub key_type : FunctionUnitKeyType,
-    raw : riscv_isa::Instruction,
-}
 
-impl fmt::Debug for FuncInstruction {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self.raw)
-    }
-}
 
 impl Resource {
     pub fn new(source : MemoryPlace, target_bytes : usize) -> Resource {
@@ -83,36 +71,5 @@ impl Destination {
             target,
             target_bytes
         }
-    }
-}
-impl FuncInstruction {
-    fn key_type_helper(raw : riscv_isa::Instruction) -> FunctionUnitKeyType {
-        // If you need more instruction type to recognize, please add this table
-        match raw {
-            riscv_isa::Instruction::VFADD_VV {..}
-            => FunctionUnitKeyType::VectorAlu,
-            riscv_isa::Instruction::VFMUL_VV {..}
-            => FunctionUnitKeyType::VectorMul,
-            riscv_isa::Instruction::VFSLIDE1UP_VF {..} | riscv_isa::Instruction::VFSLIDE1DOWN_VF{..}
-            => FunctionUnitKeyType::VectorSlide,
-
-            _ => FunctionUnitKeyType::IntegerAlu
-        }
-    }
-    pub fn new(destination : Destination, resource : Vec<Resource>, operation_cycle : usize, raw : riscv_isa::Instruction) -> FuncInstruction {
-        FuncInstruction {
-            resource,
-            destination,
-            operation_cycle,
-            raw,
-            key_type : FuncInstruction::key_type_helper(raw),
-        }
-    }
-}
-
-
-impl FuncInstruction {
-    pub fn get_key_type(&self) -> FunctionUnitKeyType {
-        self.key_type
     }
 }

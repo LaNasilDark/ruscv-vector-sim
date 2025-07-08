@@ -6,6 +6,8 @@ use std::io::{self, Read};
 use std::path::Path;
 use lazy_static::lazy_static;
 
+use crate::sim::unit::function_unit::FunctionUnitKeyType;
+
 lazy_static! {
     static ref CONFIG: RwLock<Option<SimulatorConfig>> = RwLock::new(None);
 }
@@ -76,6 +78,10 @@ impl VectorConfig {
     /// 获取向量寄存器的总字节数
     pub fn get_vector_register_bytes(&self) -> u32 {
         self.hardware.vlen / 8 // 将位转换为字节
+    }
+
+    pub fn get_vector_register_using_bytes(&self) -> u32 {
+        self.software.sew * self.software.vl
     }
     
     /// 获取向量寄存器的元素数量
@@ -265,6 +271,11 @@ impl SimulatorConfig {
     pub fn get_vector_register_bytes(&self) -> u32 {
         self.vector_config.get_vector_register_bytes()
     }
+
+    /// 获取向量寄存器正在使用的字节数
+    pub fn get_vector_register_using_bytes(&self) -> u32 {
+        self.vector_config.get_vector_register_using_bytes()
+    }
     
     /// 获取向量寄存器的元素数量
     pub fn get_vector_elements_count(&self) -> u32 {
@@ -296,6 +307,10 @@ impl SimulatorConfig {
 
     pub fn get_memory_write_ports_limit(&self) -> usize {
         self.memory_units.load_store_unit.write_ports_limit as usize
+    }
+
+    pub fn get_max_access_width(&self) -> u32 {
+        self.memory_units.load_store_unit.max_access_width
     }
 }
 

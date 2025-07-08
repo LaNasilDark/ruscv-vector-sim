@@ -1,20 +1,20 @@
 use crate::sim::{unit::memory_unit, register::{self, RegisterType}};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct MemInst {
     raw : riscv_isa::Instruction,
-    dir : Direction,
+    pub dir : Direction,
     mem_addr : MemAddr,
-    reg : RegisterType
+    pub reg : RegisterType
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum Direction {
     Read,
     Write
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct MemAddr {
     dependency : RegisterType
 }
@@ -51,5 +51,9 @@ impl MemInst {
             mem_addr,
             reg,
         }
+    }
+
+    pub fn get_total_bytes(&self) -> u32 {
+        self.reg.get_bytes()
     }
 }

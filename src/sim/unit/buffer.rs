@@ -1,3 +1,5 @@
+use std::any;
+
 use crate::sim::register::RegisterType;
 use crate::config::SimulatorConfig;
 
@@ -117,13 +119,9 @@ impl InputBuffer {
     }
     
     
-    pub fn add_resource(&mut self, resource: Resource) -> Result<(), &'static str> {
-        if resource.target_size <= self.buffer_size {
-            self.resource.push(resource);
-            Ok(())
-        } else {
-            Err("Resource target size exceeds buffer size")
-        }
+    pub fn set_resource(&mut self, resource : Vec<Resource>) -> anyhow::Result<()> {
+        self.resource = resource;
+        Ok(())
     }
     
     pub fn is_empty(&self) -> bool {
@@ -194,6 +192,17 @@ impl ResultBuffer {
             false
         }
     }
+
+
+
+    pub fn increase_result(&mut self, new_bytes : u32) -> anyhow::Result<()>{
+        if let Some(ref mut destination) = self.destination {
+            destination.append_data(new_bytes);
+            Ok(())
+        } else {
+            anyhow::bail!("No destination resource set in ResultBuffer")
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -248,5 +257,60 @@ impl BufferPair {
             }
         }
     }
+
+    pub fn increase_result(&mut self, new_bytes : u32) -> anyhow::Result<()> {
+        self.result_buffer.increase_result(new_bytes)
+    }
+
+    pub(crate) fn get_memory_input_current_bytes(&self) -> anyhow::Result<u32> {
+        if self.input_buffer.resource.iter().any(|r| r.resource_type != ResourceType::Memory && !r.is_full()) {
+            return anyhow::bail!("There is a non-memory resource in the input buffer that is not full");
+        }
+
+        let v = self.input_buffer.resource.iter()
+        .filter(|r| r.resource_type == ResourceType::Memory)
+        .map(|r| r.current_size)
+        .collect::<Vec<_>>();
+        
+        match v.len() {
+            0 => anyhow::bail!("No memory resource in the input buffer"),
+            1 => Ok(v[0]),
+            _ => anyhow::bail!("Multiple memory resource in the input buffer")
+        }
+    }
+
+    pub(crate) fn get_register_input_current_bytes(&self) -> anyhow::Result<u32> {
+        if self.input_buffer.resource.iter().any(|r| matches!(r.resource_type, ResourceType::Register(_)) && r.is_full()) {
+            return anyhow::bail!("There is a register resource in the input buffer that is full");
+        }
+
+        let v = self.input_buffer.resource.iter()
+        .filter(|r| matches!(r.resource_type, ResourceType::Register(_)))
+        .map(|r| r.current_size)
+        .collect::<Vec<_>>();
+
+        match v.len() {
+            0 => anyhow::bail!("No register resource in the input buffer"),
+            1 => Ok(v[0]),
+            _ => anyhow::bail!("Multiple register resource in the input buffer")
+        }
+    }
+
+    pub(crate) fn get_longest_input_resource_bytes(&self) -> anyhow::Result<u32> {
+        Ok(
+            self.input_buffer.resource.iter()
+            .map(|r| r.current_size)
+            .max()
+            .unwrap_or(0)
+        )
+    }
+
+    pub(crate) fn set_input(&mut self, resource : Vec<Resource>) -> anyhow::Result<()> {
+        self.input_buffer.set_resource(resource)
+    }
+
+    pub(crate) fn set_output(&mut self, destination : Resource)  {
+        self.result_buffer.destination = Some(destination)
+    } 
 }
 

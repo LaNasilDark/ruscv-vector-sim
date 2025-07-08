@@ -10,7 +10,7 @@ pub mod extract_file;
 mod tests {
     use std::f32::consts::E;
 
-    use crate::inst::{Destination, FuncInstruction, MemoryPlace, Resource};
+    use crate::inst::{Destination, MemoryPlace, Resource};
 
     use simplelog::*;
 

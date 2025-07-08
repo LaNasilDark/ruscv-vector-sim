@@ -12,8 +12,8 @@ pub mod task;
 
 use task::RegisterTask;
 
-use crate::{config::SimulatorConfig, sim::unit::{buffer::{BufferEvent, BufferEventResult}, UnitKeyType}};
-#[derive(Debug, Clone, PartialEq, Eq)]
+use crate::{config::SimulatorConfig, inst::func::FuncInst, sim::unit::{buffer::{BufferEvent, BufferEventResult}, UnitBehavior, UnitKeyType}};
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum RegisterType {
     ScalarRegister(RegisterIdType),
     VectorRegister(RegisterIdType),
@@ -219,6 +219,23 @@ impl RegisterFile {
         
         // 使用 chain 方法将三个迭代器连接成一个
         scalar_iter.chain(vector_iter).chain(float_iter)
+    }
+    
+    pub fn add_task(&mut self, func_inst : &FuncInst) {
+        let unit_key = UnitKeyType::FuncKey(func_inst.func_unit_key);
+        func_inst.resource.iter().enumerate().for_each(|(i,r)| {
+            match r {
+                RegisterType::ScalarRegister(id) => {
+                    self.scalar_registers[*id as usize].task_queue_mut().push_back(RegisterTask::new(i, UnitBehavior::Read , unit_key.clone()));
+                },
+                RegisterType::VectorRegister(id) => {
+                    self.vector_registers[*id as usize].task_queue_mut().push_back(RegisterTask::new(i, UnitBehavior::Read , unit_key.clone()));
+                },
+                RegisterType::FloatRegister(id) => {
+                    self.float_registers[*id as usize].task_queue_mut().push_back(RegisterTask::new(i, UnitBehavior::Read , unit_key.clone()));
+                }
+            }
+        });
     }
 }
 

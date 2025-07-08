@@ -8,9 +8,9 @@ pub struct RegisterTask {
 }
 
 impl RegisterTask {
-    pub fn new(current_place : u32, resource_index : usize, behavior : UnitBehavior, unit_key : UnitKeyType) -> Self {
+    pub fn new(resource_index : usize, behavior : UnitBehavior, unit_key : UnitKeyType) -> Self {
         Self {
-            current_place,
+            current_place: 0,
             resource_index,
             behavior,
             unit_key

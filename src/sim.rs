@@ -9,7 +9,7 @@ use unit::memory_unit::LoadStoreUnit;
 use crate::config::SimulatorConfig;
 use crate::sim::register::RegisterTaskHandler;
 use crate::inst::func::FuncInst;
-use crate::inst::mem::{self, MemInst};
+use crate::inst::mem::{self, Direction, MemInst};
 use crate::inst::Inst;
 use crate::sim::register::RegisterFile;
 use crate::sim::unit::buffer::{BufferEvent, BufferEventResult};
@@ -32,7 +32,7 @@ impl Simulator {
         let config = SimulatorConfig::get_global_config().expect("Global config not initialized");
         Simulator {
             fetch_unit : Fetch::new(),
-            function_unit : HashMap::new(),
+            function_unit : todo!("make a hashmap with all function units"),
             memory_unit : LoadStoreUnit::new_from_config(&config.memory_units.load_store_unit),
             register_file : Rc::new(RefCell::new(RegisterFile::new()))
         }
@@ -85,32 +85,65 @@ impl Simulator {
         })
     }
 
-    fn handle_unit_event_queue(&mut self) {
+    fn handle_unit_event_queue(&mut self) -> anyhow::Result<()>{
+        self.function_unit.values_mut()
+        .try_for_each(|v| {
+            v.handle_event()
+        })?;
 
+        self.memory_unit.handle_event_queue()?;
+
+        Ok(())
     }
 
-    fn try_issue(&mut self) {
+    fn try_issue(&mut self) -> anyhow::Result<()> {
+        if let Some(inst) = self.fetch_unit.fetch() {
+            match inst {
+                Inst::Func(func_inst) => {
+                    let cycle = calc_func_cycle(&func_inst);
+                    let fu = self.function_unit.get_mut(&func_inst.func_unit_key).unwrap();
+                    if fu.is_empty() {
+                        fu.issue(func_inst.clone())?;
+                        self.fetch_unit.next_pc();
+                        // TODO: Check if can issue the instruction on register file in if
+                        self.register_file.borrow_mut().add_task(&func_inst);
+                    }
+                },
+                Inst::Mem(mem_inst) => {
+                    if self.memory_unit.has_free_port(mem_inst.dir) {
+                        self.memory_unit.issue(mem_inst)?;
+                    }
+                }
+            }
+            
+        }
+        Ok(())
     }
-    pub fn main_sim_loop(&mut self) { 
+
+    fn is_simulation_end(&self) -> bool {
+        self.fetch_unit.is_empty() &&
+        self.function_unit.values().all(|v| v.is_empty()) &&
+        self.memory_unit.is_empty()
+    }
+    pub fn main_sim_loop(&mut self) -> anyhow::Result<()> { 
         
         let mut total_cycle : u32 = 0;
-        while !self.fetch_unit.is_empty() { 
+        while !self.is_simulation_end() { 
             
             debug!("START THE SIMULATION OF CYCLE {total_cycle}");
             
-            // 第一步，用RegisterFile的内容处理所有Unit的结果区的内容
-            // 在这一步中，从后往前对VectorRegister的队列进行操作，分别为
-            // 如果是写：则从对应Unit处获得结果，且后面没有可能覆盖的读
-            // 如果是读：后面没有可能覆盖的写，则向Unit的缓冲区写入结果
+            // Step 1: Process the content of the result area of all Units with the content of RegisterFile
+            // In this step, operate on the task queue of VectorRegisters from back to front
             self.handle_register_file();
 
-            // 第二步：更新所有Unit的事件队列
-            self.handle_unit_event_queue();
-
-            // 第三步：获取新的指令，并查看是否可以issue
-            self.try_issue();
+            // Step 2: Update the event queues of all Units
+            self.handle_unit_event_queue()?;
+            
+            // Step 3: Fetch new instructions and check if they can be issued
+            self.try_issue()?;
             total_cycle += 1;
         }
+        Ok(())
     }
 }
 

@@ -1,7 +1,7 @@
 
 
 use crate::types::*;
-use crate::inst::{FuncInstruction, Inst};
+use crate::inst::Inst;
 pub struct Fetch {
     pc : usize,
     inst_memory : Vec<riscv_isa::Instruction>
