@@ -229,16 +229,16 @@ impl Default for SimulatorConfig {
 
 impl SimulatorConfig {
     /// 从指定路径加载 TOML 配置文件并初始化全局配置
-    pub fn init_global_config(path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn init_global_config(path: &str) -> anyhow::Result<()>{
         let contents = std::fs::read_to_string(path)?;
         let config: Self = toml::from_str(&contents)?;
         
         // 验证向量配置是否有效
         if !config.vector_config.is_valid() {
-            return Err(format!("Invalid vector configuration: vl * sew > vlen ({}*{} > {})", 
+            return anyhow::bail!(format!("Invalid vector configuration: vl * sew > vlen ({}*{} > {})", 
                 config.vector_config.software.vl, 
                 config.vector_config.software.sew, 
-                config.vector_config.hardware.vlen).into());
+                config.vector_config.hardware.vlen));
         }
         
         let mut global_config = CONFIG.write().unwrap();

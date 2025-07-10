@@ -2,7 +2,9 @@ use clap::Parser;
 use log::debug;
 use ruscv_vector_sim::config::SimulatorConfig;
 use ruscv_vector_sim::extract_file::ExtractFile;
+use ruscv_vector_sim::sim::Simulator;
 use simplelog::*;
+use std::any;
 use std::fs::File;
 use riscv_isa::{Decoder, Instruction, Target};
 use std::str::FromStr;
@@ -55,7 +57,7 @@ fn init_logger() {
     ).unwrap();
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> anyhow::Result<()> {
     init_logger();
 
     let args = Args::parse();
@@ -105,6 +107,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut decoder = Decoder::from_le_bytes(target, &instructions[..]);
     let v = decoder.collect::<Vec<_>>();
     debug!("the instructions are {:?}", v);
+
+    // 初始化 Simulator
+    let mut sim = Simulator::new();
+    sim.load_instructions(v);
+
+    // 主循环
+    sim.main_sim_loop()?;
+
     Ok(()) 
 
 }

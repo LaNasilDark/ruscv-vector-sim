@@ -2,7 +2,7 @@ use crate::sim::{unit::memory_unit, register::{self, RegisterType}};
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct MemInst {
-    raw : riscv_isa::Instruction,
+    pub raw : riscv_isa::Instruction,
     pub dir : Direction,
     mem_addr : MemAddr,
     pub reg : RegisterType

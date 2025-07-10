@@ -86,6 +86,17 @@ pub struct FunctionUnit {
 }
 
 impl FunctionUnit {
+    pub fn new(max_event_queue_size: usize, bytes_per_event: u32) -> Self {
+        FunctionUnit {
+            occupied: false,
+            max_event_queue_size,
+            event_queue: VecDeque::new(),
+            current_event: None,
+            bytes_per_event,
+            buffer_pair: BufferPair::new()
+        }
+    }
+    
     // 其他方法...
     
     // 添加这个方法来直接调用buffer_pair的handle_buffer_event方法
@@ -101,6 +112,8 @@ impl FunctionUnit {
     fn free_unit(&mut self) {
         self.occupied = false;
         self.current_event = None;
+        // 清除当前指令信息
+        self.buffer_pair.current_instruction = None;
     }
 
     pub(crate) fn is_empty(&self) -> bool{
@@ -144,10 +157,24 @@ impl FunctionUnit {
     pub fn issue(&mut self, func_inst : FuncInst) -> anyhow::Result<()> {
         self.set_occupied();
         self.current_event = Some(EventGenerator::new(func_inst.clone(), calc_func_cycle(&func_inst), self.bytes_per_event, func_inst.total_process_bytes()));
+        use crate::sim::unit::buffer::EnhancedResource;
         use crate::sim::unit::buffer::Resource;
-        self.buffer_pair.set_input(func_inst.resource.iter().map(|r| Resource{resource_type: ResourceType::Register(r.clone()), current_size: 0, target_size : r.get_bytes()}).collect())?;
-
-        self.buffer_pair.set_output(Resource{ resource_type : ResourceType::Register(func_inst.destination.clone()), current_size: 0, target_size : func_inst.destination.get_bytes()});
+        self.buffer_pair.set_input(func_inst.resource.iter().map(|r| Resource{
+            resource_type: ResourceType::Register(r.clone()), 
+            current_size: 0, 
+            target_size: r.get_bytes()
+        }).collect::<Vec<_>>())?;
+    
+        self.buffer_pair.set_output(EnhancedResource{ 
+            resource_type: ResourceType::Register(func_inst.destination.clone()), 
+            current_size: 0, 
+            target_size: func_inst.destination.get_bytes(),
+            consumed_bytes: 0
+        });
+        
+        // 记录当前正在处理的指令信息
+        self.buffer_pair.set_current_instruction(crate::inst::Inst::Func(func_inst.clone()));
+        
         Ok(())
     }
 }

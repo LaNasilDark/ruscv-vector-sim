@@ -39,6 +39,7 @@ impl Fetch {
     pub fn is_empty(&self) -> bool {
         self.fetch() == None
     }
+
 }
 
 #[cfg(test)]

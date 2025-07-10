@@ -6,7 +6,7 @@ use crate::sim::{unit::function_unit::FunctionUnitKeyType, register::RegisterTyp
 use crate::config::SimulatorConfig;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FuncInst {
-    raw : riscv_isa::Instruction,
+    pub raw : riscv_isa::Instruction,
     pub destination : RegisterType,
     pub resource : Vec<RegisterType>,
     pub func_unit_key : FunctionUnitKeyType
