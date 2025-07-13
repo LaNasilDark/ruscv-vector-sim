@@ -81,7 +81,7 @@ impl VectorConfig {
     }
 
     pub fn get_vector_register_using_bytes(&self) -> u32 {
-        self.software.sew * self.software.vl
+        (self.software.sew / 8) * self.software.vl  // 将sew从位转换为字节
     }
     
     /// 获取向量寄存器的元素数量
@@ -311,6 +311,10 @@ impl SimulatorConfig {
 
     pub fn get_max_access_width(&self) -> u32 {
         self.memory_units.load_store_unit.max_access_width
+    }
+
+    pub fn get_data_length(&self) -> u32 {
+        self.vector_config.hardware.lane_number * self.vector_config.software.sew / 8
     }
 }
 

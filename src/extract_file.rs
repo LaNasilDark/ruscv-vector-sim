@@ -21,14 +21,14 @@ impl ExtractFile {
     
         // 解析 ELF 文件
         let elf = Elf::parse(&buffer)
-        .context("解析 ELF 文件失败")?;
+        .context("Failed to parse ELF file")?;
     
         // 打印 ELF 文件基本信息
-        debug!("ELF 文件信息:");
-        debug!("  架构: {}", elf.header.e_machine);
-        debug!("  入口点: 0x{:x}", elf.header.e_entry);
-        debug!("  程序头数量: {}", elf.program_headers.len());
-        debug!("  节头数量: {}", elf.section_headers.len());
+        debug!("ELF file information:");
+        debug!("  Architecture: {}", elf.header.e_machine);
+        debug!("  Entry point: 0x{:x}", elf.header.e_entry);
+        debug!("  Program headers count: {}", elf.program_headers.len());
+        debug!("  Section headers count: {}", elf.section_headers.len());
     
         // 查找 .text 节
         let text_section = elf.section_headers.iter()
@@ -37,18 +37,18 @@ impl ExtractFile {
                 .map(|name| name == ".text")
                 .unwrap_or(false)
         })
-        .context("找不到 .text 节")?;
+        .context("Could not find .text section")?;
     
         // 获取 .text 节的内容
         let text_start = text_section.sh_offset;
         let text_size = text_section.sh_size;
         let text_data = &buffer[(text_start as usize) ..(text_start as usize + text_size as usize)];
     
-        debug!("\n.text 节信息:");
-        debug!("  地址: 0x{:x}", text_section.sh_addr);
-        debug!("  大小: {} 字节", text_size);
-        debug!(" test的前32位字节是 {}", text_data.iter().take(32).map(|x| format!("0x{:02x} ", x)).collect::<String>());
-        debug!("  从{start_addr:x} 到 {end_addr:x} 的输出是：");
+        debug!("\n.text section information:");
+        debug!("  Address: 0x{:x}", text_section.sh_addr);
+        debug!("  Size: {} bytes", text_size);
+        debug!(" First 32 bytes of test are {}", text_data.iter().take(32).map(|x| format!("0x{:02x} ", x)).collect::<String>());
+        debug!("  Output from {start_addr:x} to {end_addr:x}:");
         
         debug!("{}", text_data.iter().skip((start_addr - text_section.sh_addr) as usize).take((end_addr - start_addr) as usize)
         .map(|x| format!("{:02x} ", x)).collect::<String>());

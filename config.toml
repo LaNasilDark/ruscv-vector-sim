@@ -21,7 +21,7 @@ latency = 1
 
 [memory_units.load_store_unit]
 latency = 2 
-max_access_width = 8 #bytes
+max_access_width = 32 #bytes
 read_ports_limit = 2 # This value indicates how many values can be read in parallel.
 write_ports_limit = 2 # This value indicates how many values can be write in parallel.
 

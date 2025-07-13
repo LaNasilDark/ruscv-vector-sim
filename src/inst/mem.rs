@@ -4,7 +4,7 @@ use crate::sim::{unit::memory_unit, register::{self, RegisterType}};
 pub struct MemInst {
     pub raw : riscv_isa::Instruction,
     pub dir : Direction,
-    mem_addr : MemAddr,
+    pub mem_addr : MemAddr,
     pub reg : RegisterType
 }
 
@@ -16,7 +16,7 @@ pub enum Direction {
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct MemAddr {
-    dependency : RegisterType
+    pub dependency : RegisterType
 }
 
 impl MemAddr {

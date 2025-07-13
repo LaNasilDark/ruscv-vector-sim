@@ -2,6 +2,7 @@
 
 use crate::types::*;
 use crate::inst::Inst;
+use log::debug;
 pub struct Fetch {
     pc : usize,
     inst_memory : Vec<riscv_isa::Instruction>
@@ -33,6 +34,7 @@ impl Fetch {
     }
 
     pub fn next_pc(&mut self) {
+        debug!("Advancing PC from {} to {}", self.pc, self.pc + 1);
         self.update_pc(self.pc + 1);
     }
 

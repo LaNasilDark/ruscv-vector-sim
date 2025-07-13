@@ -19,10 +19,10 @@ impl RegisterTask {
 
     pub fn generate_event(&self, update_bytes : u32) -> BufferEvent {
         match self.behavior {
-            UnitBehavior::Read => BufferEvent::Consumer(
+            UnitBehavior::Write => BufferEvent::Consumer(
                 ConsumerEvent::new(update_bytes)
             ),
-            UnitBehavior::Write => BufferEvent::Producer(
+            UnitBehavior::Read => BufferEvent::Producer(
                 ProducerEvent::new(self.resource_index, update_bytes)
             )
         }

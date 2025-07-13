@@ -2,6 +2,9 @@ use std::any;
 
 use crate::sim::register::RegisterType;
 use crate::config::SimulatorConfig;
+use crate::sim::unit::{FunctionUnitKeyType, MemoryUnitKeyType};
+use log::{debug, info}; // 添加log模块导入
+
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResourceType {
@@ -186,7 +189,7 @@ impl ResultBuffer {
         }
     }
     
-    pub fn increase_result(&mut self, new_bytes: u32) -> anyhow::Result<()> {
+    pub fn increase_result_inner(&mut self, new_bytes: u32) -> anyhow::Result<()> {
         if let Some(ref mut destination) = self.destination {
             destination.append_data(new_bytes);
             Ok(())
@@ -194,7 +197,7 @@ impl ResultBuffer {
             anyhow::bail!("No destination resource set in ResultBuffer")
         }
     }
-    
+
     // 新增：获取已消耗的字节数
     pub fn get_consumed_bytes(&self) -> anyhow::Result<u32> {
         if let Some(ref destination) = self.destination {
@@ -243,10 +246,21 @@ impl ProducerEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BufferOwnerType {
+    /// 功能单元
+    FunctionUnit(FunctionUnitKeyType),
+    /// 内存单元端口
+    MemoryUnit(MemoryUnitKeyType),
+    /// 未分配（初始状态）
+    Unassigned,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BufferPair {
-    pub input_buffer : InputBuffer,
-    pub result_buffer : ResultBuffer,
-    pub current_instruction: Option<crate::inst::Inst>  // 存储当前正在处理的指令信息
+    pub input_buffer: InputBuffer,
+    pub result_buffer: ResultBuffer,
+    pub current_instruction: Option<crate::inst::Inst>,  // 存储当前正在处理的指令信息
+    pub owner: BufferOwnerType,  // 新增：表示buffer所属的单元类型，不再是Option
 }
 
 impl BufferPair {
@@ -254,23 +268,125 @@ impl BufferPair {
         BufferPair {
             input_buffer: InputBuffer::new_from_global(),
             result_buffer: ResultBuffer::new_from_global(),
-            current_instruction: None
+            current_instruction: None,
+            owner: BufferOwnerType::Unassigned, // 默认为未分配状态
         }
     }
     
-    pub fn handle_buffer_event(&mut self, event: BufferEvent) -> anyhow::Result<BufferEventResult> {
-        match event {
-            BufferEvent::Producer(producer_event) => {
-                Ok(BufferEventResult::Producer(self.input_buffer.handle_producer_event(&producer_event)?))
-            },
-            BufferEvent::Consumer(consumer_event) => {
-                Ok(BufferEventResult::Consumer(self.result_buffer.handle_consumer_event(&consumer_event)?))
-            }
+    // 新增：创建时直接指定所属单元
+    pub fn new_with_owner(owner: BufferOwnerType) -> Self {
+        BufferPair {
+            input_buffer: InputBuffer::new_from_global(),
+            result_buffer: ResultBuffer::new_from_global(),
+            current_instruction: None,
+            owner,
         }
     }
-
+    
+    // 修改：设置buffer所属的单元类型
+    pub fn set_owner(&mut self, owner: BufferOwnerType) {
+        self.owner = owner;
+    }
+    
+    // 修改：获取buffer所属的单元类型
+    pub fn get_owner(&self) -> &BufferOwnerType {
+        &self.owner
+    }
+    
+    pub fn handle_buffer_event(&mut self, event: BufferEvent) -> anyhow::Result<BufferEventResult> {
+        debug!("[BufferPair] Processing buffer event: {:?} for owner: {:?}", event, self.owner);
+        
+        let result = match event {
+            BufferEvent::Producer(producer_event) => {
+                debug!("[FORWARD-INFO] ===== BufferPair handling producer event =====");
+                debug!("[FORWARD-INFO] Owner: {:?}", self.owner);
+                debug!("[FORWARD-INFO] Resource index: {}, append length: {} bytes", 
+                    producer_event.resource_index, producer_event.append_length);
+                
+                let result = self.input_buffer.handle_producer_event(&producer_event)?;
+                
+                debug!("[FORWARD-INFO] Producer result: accepted={} bytes, remaining={} bytes", 
+                    result.accepted_length, result.remaining_bytes);
+                debug!("[FORWARD-INFO] ==========================================");
+                
+                Ok(BufferEventResult::Producer(result))
+            },
+            BufferEvent::Consumer(consumer_event) => {
+                debug!("[FORWARD-INFO] ===== BufferPair handling consumer event =====");
+                debug!("[FORWARD-INFO] Owner: {:?}", self.owner);
+                debug!("[FORWARD-INFO] Maximum consume length: {} bytes", 
+                    consumer_event.maximum_consume_length);
+                
+                let result = self.result_buffer.handle_consumer_event(&consumer_event)?;
+                
+                debug!("[FORWARD-INFO] Consumer result: consumed={} bytes, remaining={} bytes", 
+                    result.consumed_bytes, result.remaining_bytes);
+                debug!("[FORWARD-INFO] ==========================================");
+                
+                Ok(BufferEventResult::Consumer(result))
+            }
+        };
+        
+        // 显示当前处理状态
+        self.debug_status();
+        
+        result
+    }
+    
+    // 添加一个新方法用于显示当前状态
+    pub fn debug_status(&self) {
+        debug!("[BufferPair] Current status for {:?}:", self.owner);
+        
+        // 显示输入缓冲区状态
+        debug!("[BufferPair] Input buffer resources:");
+        for (i, resource) in self.input_buffer.resource.iter().enumerate() {
+            let resource_type = match &resource.resource_type {
+                ResourceType::Register(reg_type) => format!("Register({:?})", reg_type),
+                ResourceType::Memory => "Memory".to_string(),
+            };
+            debug!("[BufferPair]   Resource[{}]: Type={}, Progress={}/{} bytes ({:.2}%)", 
+                i, resource_type, resource.current_size, resource.target_size,
+                (resource.current_size as f32 / resource.target_size as f32) * 100.0);
+        }
+        
+        // 显示输出缓冲区状态
+        if let Some(ref dest) = self.result_buffer.destination {
+            let resource_type = match &dest.resource_type {
+                ResourceType::Register(reg_type) => format!("Register({:?})", reg_type),
+                ResourceType::Memory => "Memory".to_string(),
+            };
+            debug!("[BufferPair] Output buffer: Type={}, Current={}/{} bytes ({:.2}%), Consumed={} bytes, Total processed={}/{} bytes ({:.2}%)", 
+                resource_type, dest.current_size, dest.target_size,
+                (dest.current_size as f32 / dest.target_size as f32) * 100.0,
+                dest.consumed_bytes,
+                dest.total_processed_bytes(), dest.target_size,
+                (dest.total_processed_bytes() as f32 / dest.target_size as f32) * 100.0);
+        } else {
+            debug!("[BufferPair] Output buffer: Not set");
+        }
+        
+        // 显示当前指令信息
+        if let Some(ref inst) = self.current_instruction {
+            debug!("[BufferPair] Current instruction: {:?}", inst);
+        } else {
+            debug!("[BufferPair] Current instruction: None");
+        }
+    }
+    
     pub fn increase_result(&mut self, new_bytes : u32) -> anyhow::Result<()> {
-        self.result_buffer.increase_result(new_bytes)
+        debug!("[BufferPair] Increasing result buffer by {} bytes for {:?}", new_bytes, self.owner);
+        let result = self.result_buffer.increase_result_inner(new_bytes);
+        
+        // 显示更新后的状态
+        if let Some(ref dest) = self.result_buffer.destination {
+            debug!("[BufferPair] Result buffer after increase: Current={}/{} bytes ({:.2}%), Total processed={}/{} bytes ({:.2}%)", 
+                dest.current_size, dest.target_size,
+                (dest.current_size as f32 / dest.target_size as f32) * 100.0,
+                dest.total_processed_bytes(), dest.target_size,
+                (dest.total_processed_bytes() as f32 / dest.target_size as f32) * 100.0);
+        }
+        
+        result
     }
 
     pub(crate) fn get_memory_input_current_bytes(&self) -> anyhow::Result<u32> {
@@ -317,12 +433,31 @@ impl BufferPair {
     }
 
     pub(crate) fn set_input(&mut self, resource : Vec<Resource>) -> anyhow::Result<()> {
+        debug!("[BufferPair] Setting input buffer for {:?} with {} resources", self.owner, resource.len());
+        
+        for (i, res) in resource.iter().enumerate() {
+            let resource_type = match &res.resource_type {
+                ResourceType::Register(reg_type) => format!("Register({:?})", reg_type),
+                ResourceType::Memory => "Memory".to_string(),
+            };
+            debug!("[BufferPair]   Resource[{}]: Type={}, Target size={} bytes", 
+                i, resource_type, res.target_size);
+        }
+        
         self.input_buffer.set_resource(resource)
     }
-
-    pub(crate) fn set_output(&mut self, destination : EnhancedResource)  {
-        self.result_buffer.destination = Some(destination)
-    } 
+    
+    pub(crate) fn set_output(&mut self, destination : EnhancedResource) {
+        let resource_type = match &destination.resource_type {
+            ResourceType::Register(reg_type) => format!("Register({:?})", reg_type),
+            ResourceType::Memory => "Memory".to_string(),
+        };
+        
+        debug!("[BufferPair] Setting output buffer for {:?}: Type={}, Target size={} bytes", 
+            self.owner, resource_type, destination.target_size);
+        
+        self.result_buffer.destination = Some(destination);
+    }
     
     // 添加一个方法来设置当前指令信息
     pub fn set_current_instruction(&mut self, instruction: crate::inst::Inst) {
@@ -332,6 +467,43 @@ impl BufferPair {
     // 添加一个方法来获取当前指令信息
     pub fn get_current_instruction(&self) -> Option<&crate::inst::Inst> {
         self.current_instruction.as_ref()
+    }
+
+    pub fn get_current_input_bytes(&self) -> anyhow::Result<u32> {
+        if self.input_buffer.resource.iter()
+        .any(|r| matches!(r.resource_type, ResourceType::Register(RegisterType::VectorRegister(_)))) {
+            Ok(self.input_buffer.resource.iter()
+                        .filter(|r| matches!(r.resource_type, ResourceType::Register(RegisterType::VectorRegister(_))))
+                        .map(|r| r.current_size)
+                        .min()
+                        .unwrap_or(0))
+        } else {
+            Ok(self.input_buffer.resource.iter()
+                        .map(|r| r.current_size)
+                        .min()
+                        .unwrap_or(0))
+        }
+    }
+    
+    /// 检查结果缓冲区是否已完成读取
+    pub fn is_result_completed(&self) -> bool {
+        self.result_buffer.is_completed()
+    }
+    
+    /// 清空 BufferPair 的所有缓冲区
+    pub fn clear(&mut self) {
+        debug!("[BufferPair] Clearing all buffers for {:?}", self.owner);
+        
+        // 清除当前指令信息
+        self.current_instruction = None;
+        
+        // 清空 input_buffer
+        self.input_buffer.resource.clear();
+        
+        // 清空 result_buffer
+        self.result_buffer.destination = None;
+        
+        debug!("[BufferPair] All buffers cleared successfully");
     }
 }
 
@@ -381,14 +553,14 @@ impl EnhancedResource {
         actual_consume
     }
     
-    // 获取总共已处理的字节数（当前存储 + 已消耗）
     pub fn total_processed_bytes(&self) -> u32 {
-        self.current_size + self.consumed_bytes
+        self.current_size
     }
-    
+
     // 检查是否已完成所有处理
     pub fn is_completed(&self) -> bool {
-        self.total_processed_bytes() >= self.target_size
+        self.consumed_bytes == self.target_size
     }
 }
+
 
