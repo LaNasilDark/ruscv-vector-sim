@@ -315,6 +315,33 @@ impl LoadStoreUnit {
         
         Ok(())
     }
+    // 添加一个新函数，用于自动增加写端口的ResultBuffer的consumed_bytes
+    pub fn auto_increase_memory_write_consumed_bytes(&mut self) -> anyhow::Result<()> {
+        // 处理写端口
+        for i in 0..self.write_port_used.len() {
+            if let Some(ref port) = self.write_port_used[i] {
+                // 获取每周期可以写入内存的字节数
+                let memory_bytes_per_cycle = port.bytes_per_cycle;
+                
+                // 检查该端口的 result_buffer 中的目标资源是否为 Memory 类型
+                if let Some(ref mut destination) = self.write_port_buffer[i].result_buffer.destination {
+                    if let ResourceType::Memory = destination.resource_type {
+                        // 计算可以增加的已消耗字节数（不超过目标大小）
+                        let bytes_to_add = memory_bytes_per_cycle.min(destination.target_size - destination.consumed_bytes);
+                        if bytes_to_add > 0 {
+                            // 增加已消耗的字节数
+                            destination.consumed_bytes += bytes_to_add;
+                            // 减少当前字节数（如果有的话）
+                            destination.current_size = destination.current_size.saturating_sub(bytes_to_add);
+                            debug!("Auto-increasing memory write consumed bytes: write port {}, adding {} bytes", i, bytes_to_add);
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(())
+    }
     // 添加在LoadStoreUnit实现中的其他函数之后
     pub fn debug_port_status(&self) {
         debug!("Memory unit port status:");

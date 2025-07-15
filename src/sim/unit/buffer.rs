@@ -391,7 +391,7 @@ impl BufferPair {
 
     pub(crate) fn get_memory_input_current_bytes(&self) -> anyhow::Result<u32> {
         if self.input_buffer.resource.iter().any(|r| r.resource_type != ResourceType::Memory && !r.is_full()) {
-            return anyhow::bail!("There is a non-memory resource in the input buffer that is not full");
+            return Ok(0);
         }
 
         let v = self.input_buffer.resource.iter()
@@ -407,9 +407,6 @@ impl BufferPair {
     }
 
     pub(crate) fn get_register_input_current_bytes(&self) -> anyhow::Result<u32> {
-        if self.input_buffer.resource.iter().any(|r| matches!(r.resource_type, ResourceType::Register(_)) && r.is_full()) {
-            return anyhow::bail!("There is a register resource in the input buffer that is full");
-        }
 
         let v = self.input_buffer.resource.iter()
         .filter(|r| matches!(r.resource_type, ResourceType::Register(_)))
@@ -417,8 +414,8 @@ impl BufferPair {
         .collect::<Vec<_>>();
 
         match v.len() {
-            0 => anyhow::bail!("No register resource in the input buffer"),
-            1 => Ok(v[0]),
+            0 | 1 => anyhow::bail!("Not enough register resource in the input buffer"),
+            2 => Ok(v[1]),
             _ => anyhow::bail!("Multiple register resource in the input buffer")
         }
     }

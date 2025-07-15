@@ -134,7 +134,12 @@ Vector Mask is not currently implemented.
 ### Simple Example
 
 ```bash
-cargo run -- -i appendix/_chaintest/bin/chaintest -c ./config.toml -s 0x1023c -e 0x10248
+cargo run -- -i appendix/_chaintest/bin/chaintest -c ./config.toml -s 0x1023c -e 0x10250
+```
+
+### Complex Example
+```sh
+cargo run -- -i appendix/jacobi-2d_vector.exe -c ./config.toml -s 0x10cb2 -e 0x10d10
 ```
 
 ### Command Line Arguments
@@ -144,4 +149,3 @@ cargo run -- -i appendix/_chaintest/bin/chaintest -c ./config.toml -s 0x1023c -e
 - `-s, --start_addr`: Start address of the region to simulate (hex)
 - `-e, --end_addr`: End address of the region to simulate (hex)
 - `-v, --verbose`: Verbose output
-        

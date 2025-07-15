@@ -99,7 +99,7 @@ fn main() -> anyhow::Result<()> {
     }
 
 
-    let target = Target::from_str("RV64IMFDAVZifencei_Zicsr_Zcd").unwrap();
+    let target = Target::from_str("RV64IMFDAVZifencei_Zicsr_Zcd_Zca").unwrap();
     
     debug!("the start_addr is {:x}, end_addr is {:x}", args.start_addr, args.end_addr);
     let instructions = ExtractFile::extract_code_from_file(&args.input, args.start_addr, args.end_addr)?;

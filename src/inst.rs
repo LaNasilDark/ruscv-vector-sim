@@ -39,7 +39,7 @@ impl Inst {
     pub fn new(riscv_isa : Instruction) -> Inst {
         // If you need more instructions, please extend this table
         match riscv_isa {
-            Instruction::LD {..} | Instruction::FLD{..} | Instruction::VLE{..} | Instruction::VSE {..} => Inst::Mem(MemInst::new(riscv_isa)),
+            Instruction::LD {..} | Instruction::FLD{..} | Instruction::VLE{..} | Instruction::VSE {..} | Instruction::SD{..}=> Inst::Mem(MemInst::new(riscv_isa)),
             _ => Inst::Func(FuncInst::new(riscv_isa))
         }
  

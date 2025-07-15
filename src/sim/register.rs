@@ -342,15 +342,15 @@ impl RegisterFile {
         match mem_inst.mem_addr.dependency {
             RegisterType::ScalarRegister(id) => {
                 debug!("Adding scalar register task for memory address: register ID: {}", id);
-                self.scalar_registers[id as usize].task_queue_mut().push_back(RegisterTask::new(0, UnitBehavior::Read, unit_key.clone()));
+                self.scalar_registers[id as usize].task_queue_mut().push_front(RegisterTask::new(0, UnitBehavior::Read, unit_key.clone()));
             },
             RegisterType::VectorRegister(id) => {
                 debug!("Adding vector register task for memory address: register ID: {}", id);
-                self.vector_registers[id as usize].task_queue_mut().push_back(RegisterTask::new(0, UnitBehavior::Read, unit_key.clone()));
+                self.vector_registers[id as usize].task_queue_mut().push_front(RegisterTask::new(0, UnitBehavior::Read, unit_key.clone()));
             },
             RegisterType::FloatRegister(id) => {
                 debug!("Adding float register task for memory address: register ID: {}", id);
-                self.float_registers[id as usize].task_queue_mut().push_back(RegisterTask::new(0, UnitBehavior::Read, unit_key.clone()));
+                self.float_registers[id as usize].task_queue_mut().push_front(RegisterTask::new(0, UnitBehavior::Read, unit_key.clone()));
             }
         };
         
@@ -363,15 +363,15 @@ impl RegisterFile {
         match mem_inst.reg {
             RegisterType::ScalarRegister(id) => {
                 debug!("Adding scalar register task for data: register ID: {}, behavior: {:?}", id, behavior);
-                self.scalar_registers[id as usize].task_queue_mut().push_back(RegisterTask::new(resource_index, behavior, unit_key.clone()));
+                self.scalar_registers[id as usize].task_queue_mut().push_front(RegisterTask::new(resource_index, behavior, unit_key.clone()));
             },
             RegisterType::VectorRegister(id) => {
                 debug!("Adding vector register task for data: register ID: {}, behavior: {:?}", id, behavior);
-                self.vector_registers[id as usize].task_queue_mut().push_back(RegisterTask::new(resource_index, behavior, unit_key.clone()));
+                self.vector_registers[id as usize].task_queue_mut().push_front(RegisterTask::new(resource_index, behavior, unit_key.clone()));
             },
             RegisterType::FloatRegister(id) => {
                 debug!("Adding float register task for data: register ID: {}, behavior: {:?}", id, behavior);
-                self.float_registers[id as usize].task_queue_mut().push_back(RegisterTask::new(resource_index, behavior, unit_key.clone()));
+                self.float_registers[id as usize].task_queue_mut().push_front(RegisterTask::new(resource_index, behavior, unit_key.clone()));
             }
         };
     }

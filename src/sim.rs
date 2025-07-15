@@ -174,9 +174,13 @@ impl Simulator {
     fn auto_increase_memory_data(&mut self) -> anyhow::Result<()> {
         self.memory_unit.auto_increase_memory_data()
     }
+    // 添加一个新函数，用于自动增加内存写入的已消耗字节数
+    fn auto_increase_memory_write_consumed_bytes(&mut self) -> anyhow::Result<()> {
+        self.memory_unit.auto_increase_memory_write_consumed_bytes()
+    }
     pub fn main_sim_loop(&mut self) -> anyhow::Result<()> { 
         let mut total_cycle : u32 = 0;
-        let max_cycles : u32 = 100; // 设置最大周期数为20
+        let max_cycles : u32 = 400; // 设置最大周期数为20
         debug!("Starting main simulation loop");
         
         while !self.is_simulation_end() && total_cycle < max_cycles { // 添加周期限制条件
@@ -190,6 +194,10 @@ impl Simulator {
             // Step 1.2: Auto increase memory data
             info!("Step 1.2: Increasing memory-type content in input buffer");
             self.auto_increase_memory_data()?;
+            
+            // Step 1.3: Auto increase memory write consumed bytes
+            info!("Step 1.3: Increasing consumed bytes for memory-type in write port result buffer");
+            self.auto_increase_memory_write_consumed_bytes()?;
     
             // Step 2: Update the event queues of all Units
             info!("Step 2: Updating event queues of all units");

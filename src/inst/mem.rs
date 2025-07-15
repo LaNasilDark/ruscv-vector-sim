@@ -34,6 +34,9 @@ impl MemInst {
             riscv_isa::Instruction::LD { rd, rs1, offset } => {
                 (Direction::Read, MemAddr::new(RegisterType::ScalarRegister(rs1)), RegisterType::ScalarRegister(rd))
             },
+            riscv_isa::Instruction::SD { rs1, rs2, offset } => {
+                (Direction::Write, MemAddr::new(RegisterType::ScalarRegister(rs2)), RegisterType::ScalarRegister(rs1))
+            },
             riscv_isa::Instruction::FLD { frd, rs1, offset } => {
                 (Direction::Read, MemAddr::new(RegisterType::ScalarRegister(rs1)), RegisterType::FloatRegister(frd))
             },
@@ -41,7 +44,7 @@ impl MemInst {
                 (Direction::Read, MemAddr::new(RegisterType::ScalarRegister(rs1)), RegisterType::VectorRegister(vrd))
             },
             riscv_isa::Instruction::VSE { vrd, rs1, width } => {
-                (Direction::Write, MemAddr::new(RegisterType::ScalarRegister(rs1)), RegisterType::ScalarRegister(vrd))
+                (Direction::Write, MemAddr::new(RegisterType::ScalarRegister(rs1)), RegisterType::VectorRegister(vrd))
             }
             _ => panic!("Not a memory instruction")
         };

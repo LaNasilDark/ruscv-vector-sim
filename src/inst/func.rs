@@ -24,12 +24,13 @@ impl FuncInst {
                 FunctionUnitKeyType::IntegerAlu)
             },
             Instruction::XORI { rd, rs1, imm }
-            |Instruction::ADDIW { rd, rs1, imm } => {
+            |Instruction::ADDIW { rd, rs1, imm } 
+            | Instruction::ADDI { rd, rs1, imm }=> {
                 (RegisterType::ScalarRegister(rd),
                 vec![RegisterType::ScalarRegister(rs1)],
                 FunctionUnitKeyType::IntegerAlu)
             },
-            Instruction::SLLI { rd, rs1, shamt } => {
+            Instruction::SLLI { rd, rs1, shamt } | Instruction::SRLI { rd, rs1, shamt } => {
                 (RegisterType::ScalarRegister(rd),
                 vec![RegisterType::ScalarRegister(rs1)],
                 FunctionUnitKeyType::IntegerAlu)
@@ -48,9 +49,9 @@ impl FuncInst {
             Instruction::VFSLIDE1DOWN_VF { vrd, frs1, vrs2 }
             | Instruction::VFSLIDE1UP_VF { vrd, frs1, vrs2 } => {
                 (RegisterType::VectorRegister(vrd),
-            vec![RegisterType::FloatRegister(frs1), RegisterType::VectorRegister(vrd), ], FunctionUnitKeyType::VectorSlide)
+            vec![RegisterType::FloatRegister(frs1), RegisterType::VectorRegister(vrd), RegisterType::VectorRegister(vrs2)], FunctionUnitKeyType::VectorSlide)
             }
-            _ => unimplemented!("Not supported instruction")
+            _ => unimplemented!("Not supported instruction {:?}", riscv_isa),
         };
         FuncInst {
             raw : riscv_isa,
