@@ -117,7 +117,8 @@ pub struct FunctionUnit {
     event_queue : VecDeque<Event>,
     current_event : Option<EventGenerator>,
     bytes_per_event : u32,
-    buffer_pair : BufferPair
+    buffer_pair : BufferPair,
+    unit_type : FunctionUnitKeyType
 }
 
 impl FunctionUnit {
@@ -130,7 +131,8 @@ impl FunctionUnit {
             event_queue: VecDeque::new(),
             current_event: None,
             bytes_per_event,
-            buffer_pair: BufferPair::new_with_owner(BufferOwnerType::FunctionUnit(unit_type))
+            buffer_pair: BufferPair::new_with_owner(BufferOwnerType::FunctionUnit(unit_type)),
+            unit_type
         }
     }
 
@@ -146,38 +148,38 @@ impl FunctionUnit {
 
 
     fn free_unit(&mut self) {
-        debug!("[FunctionUnit] ResultBuffer check passed, clearing occupied flag and current event");
+        debug!("[{:?}] ResultBuffer check passed, clearing occupied flag and current event", self.unit_type);
         self.occupied = false;
         self.current_event = None;
         
         // 使用 BufferPair 的 clear 方法清空所有缓冲区
         self.buffer_pair.clear();
         
-        debug!("[FunctionUnit] Unit freed successfully");
+        debug!("[{:?}] Unit freed successfully", self.unit_type);
     }
 
     pub(crate) fn is_empty(&self) -> bool{
         !self.occupied
     }
     pub fn handle_event(&mut self) -> anyhow::Result<()>{
-        debug!("[FunctionUnit] Starting handle_event: event_queue_size={}, occupied={}", 
-               self.event_queue.len(), self.occupied);
+        debug!("[{:?}] Starting handle_event: event_queue_size={}, occupied={}", 
+               self.unit_type, self.event_queue.len(), self.occupied);
         
         // 更新所有事件的剩余周期
         self.event_queue.iter_mut().for_each(
             |v| {
-                debug!("[FunctionUnit] Decreasing event cycle: remained_cycle={} -> {}, target_register={:?}, result_bytes={} bytes", 
-                       v.remained_cycle, v.remained_cycle - 1, v.target_register, v.result_bytes);
+                debug!("[{:?}] Decreasing event cycle: remained_cycle={} -> {}, target_register={:?}, result_bytes={} bytes", 
+                       self.unit_type, v.remained_cycle, v.remained_cycle - 1, v.target_register, v.result_bytes);
                 v.remained_cycle -= 1;
             }
         );
-
+    
         // 清除队列最后的事件
         let mut completed_events = 0;
         while let Some(event) = self.event_queue.back() {
             if event.remained_cycle == 0 {
-                debug!("[FunctionUnit] Event completed: target_register={:?}, result_bytes={} bytes", 
-                       event.target_register, event.result_bytes);
+                debug!("[{:?}] Event completed: target_register={:?}, result_bytes={} bytes", 
+                       self.unit_type, event.target_register, event.result_bytes);
                 self.buffer_pair.increase_result(event.result_bytes)?;
                 self.event_queue.pop_back();
                 completed_events += 1;
@@ -185,44 +187,44 @@ impl FunctionUnit {
                 break;
             }
         }
-        debug!("[FunctionUnit] Completed and removed {} events from queue", completed_events);
-
+        debug!("[{:?}] Completed and removed {} events from queue", self.unit_type, completed_events);
+    
         // 保证每次只加入一个事件
         if let Some(event_gen) = self.current_event.as_mut() {
-            debug!("[FunctionUnit] Processing current event generator");
+            debug!("[{:?}] Processing current event generator", self.unit_type);
             if event_gen.is_complete() {
-                debug!("[FunctionUnit] EventGenerator is end");
+                debug!("[{:?}] EventGenerator is end", self.unit_type);
                 if let Some(ref destination) = self.buffer_pair.result_buffer.destination {
                     if destination.is_completed() {
-                        debug!("[FunctionUnit] ResultBuffer is fully consumed, freeing unit");
+                        debug!("[{:?}] ResultBuffer is fully consumed, freeing unit", self.unit_type);
                         self.free_unit();
                         
                     } else {
-                        debug!("[FunctionUnit] Cannot free unit: ResultBuffer not fully consumed yet. Current: {}/{} bytes, Consumed: {} bytes", 
-                       destination.current_size, destination.target_size, destination.consumed_bytes);
+                        debug!("[{:?}] Cannot free unit: ResultBuffer not fully consumed yet. Current: {}/{} bytes, Consumed: {} bytes", 
+                       self.unit_type, destination.current_size, destination.target_size, destination.consumed_bytes);
                     }
                 }
                 
                 
             } else {
-                debug!("[FunctionUnit] Event generator not complete, checking for new events");
+                debug!("[{:?}] Event generator not complete, checking for new events", self.unit_type);
                 let current_bytes = self.buffer_pair.get_current_input_bytes()?;
-                debug!("[FunctionUnit] Current input bytes available: {} bytes", current_bytes);
+                debug!("[{:?}] Current input bytes available: {} bytes", self.unit_type, current_bytes);
                 
                 if let Some(event) = event_gen.generate_next_event(current_bytes) {
-                    debug!("[FunctionUnit] Adding new event to queue: remained_cycle={}, target_register={:?}, result_bytes={} bytes", 
-                           event.remained_cycle, event.target_register, event.result_bytes);
+                    debug!("[{:?}] Adding new event to queue: remained_cycle={}, target_register={:?}, result_bytes={} bytes", 
+                           self.unit_type, event.remained_cycle, event.target_register, event.result_bytes);
                     self.event_queue.push_front(event);
                 } else {
-                    debug!("[FunctionUnit] No new event generated, waiting for more input data");
+                    debug!("[{:?}] No new event generated, waiting for more input data", self.unit_type);
                 }
             }
         } else {
-            debug!("[FunctionUnit] No current event generator active");
+            debug!("[{:?}] No current event generator active", self.unit_type);
         }
         
-        debug!("[FunctionUnit] Finished handle_event: event_queue_size={}, occupied={}", 
-               self.event_queue.len(), self.occupied);
+        debug!("[{:?}] Finished handle_event: event_queue_size={}, occupied={}", 
+               self.unit_type, self.event_queue.len(), self.occupied);
         Ok(())
     }
 
@@ -237,19 +239,19 @@ impl FunctionUnit {
         let total_bytes = func_inst.total_process_bytes();
         let is_vector = func_inst.resource.iter().any(|v| matches!(v, RegisterType::VectorRegister(_)));
         
-        debug!("[FunctionUnit] Issuing instruction: {:?}", func_inst.raw);
-        debug!("[FunctionUnit] Is vector instruction: {}", is_vector);
+        debug!("[{:?}] Issuing instruction: {:?}", self.unit_type, func_inst.raw);
+        debug!("[{:?}] Is vector instruction: {}", self.unit_type, is_vector);
         if is_vector {
             let config = SimulatorConfig::get_global_config().expect("Global config not initialized");
-            debug!("[FunctionUnit] Vector config - vlen: {} bits ({} bytes)", 
-                   config.vector_config.hardware.vlen, 
+            debug!("[{:?}] Vector config - vlen: {} bits ({} bytes)", 
+                   self.unit_type, config.vector_config.hardware.vlen, 
                    config.vector_config.hardware.vlen / 8);
-            debug!("[FunctionUnit] Vector config - sew: {} bits ({} bytes)", 
-                   config.vector_config.software.sew, 
+            debug!("[{:?}] Vector config - sew: {} bits ({} bytes)", 
+                   self.unit_type, config.vector_config.software.sew, 
                    config.vector_config.software.sew / 8);
-            debug!("[FunctionUnit] Vector config - vl: {}", config.vector_config.software.vl);
-            debug!("[FunctionUnit] Calculated total_bytes: {} (should be: {})", 
-                   total_bytes, 
+            debug!("[{:?}] Vector config - vl: {}", self.unit_type, config.vector_config.software.vl);
+            debug!("[{:?}] Calculated total_bytes: {} (should be: {})", 
+                   self.unit_type, total_bytes, 
                    (config.vector_config.software.sew / 8) * config.vector_config.software.vl);
         }
         
