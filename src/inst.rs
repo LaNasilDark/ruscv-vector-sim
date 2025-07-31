@@ -36,11 +36,12 @@ pub enum Inst {
 }
 
 impl Inst {
-    pub fn new(riscv_isa : Instruction) -> Inst {
+    pub fn new(riscv_isa : Instruction) -> Option<Inst> {
         // If you need more instructions, please extend this table
         match riscv_isa {
-            Instruction::LD {..} | Instruction::FLD{..} | Instruction::VLE{..} | Instruction::VSE {..} | Instruction::SD{..}=> Inst::Mem(MemInst::new(riscv_isa)),
-            _ => Inst::Func(FuncInst::new(riscv_isa))
+            Instruction::LD {..} | Instruction::FLD{..} | Instruction::VLE{..} | Instruction::VSE {..} | Instruction::SD{..}=> Some(Inst::Mem(MemInst::new(riscv_isa))),
+            Instruction::VSETVL { .. } | Instruction::VSETIVLI { .. } | Instruction::VSETVLI { .. }=> None,
+            _ => Some(Inst::Func(FuncInst::new(riscv_isa)))
         }
  
     }

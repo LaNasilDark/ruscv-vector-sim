@@ -43,6 +43,13 @@ pub fn calc_func_cycle(inst: &FuncInst) -> u32 {
                 config.function_units.interger_multiplier.latency
             }
         },
+        FunctionUnitKeyType::VectorMacc => {
+            if inst.is_float() {
+                config.function_units.float_multiplier.latency
+            } else {
+                config.function_units.interger_multiplier.latency
+            }
+        },
         FunctionUnitKeyType::VectorSlide => {
             1 // 向量滑动操作的固定延迟
         }

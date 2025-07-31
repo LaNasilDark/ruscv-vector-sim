@@ -19,15 +19,15 @@ impl Fetch {
     pub fn load(&mut self, inst_memory : Vec<riscv_isa::Instruction>) {
         self.inst_memory = inst_memory;
     }
-    pub fn fetch(&self) -> Option<Inst>{
-        if self.pc >= self.inst_memory.len() {
-            return None;
-        } else {
+    pub fn fetch(&mut self) -> Option<Inst>{
 
-            Some(Inst::new(self.inst_memory[self.pc]))
+        while self.pc < self.inst_memory.len() {
+            if let Some(inst) = Inst::new(self.inst_memory[self.pc]) {
+                return Some(inst);
+            }
+            self.pc += 1;
         }
-
-
+        None
     }
     pub fn update_pc(&mut self, new_pc : usize) {
         self.pc = new_pc;
@@ -39,7 +39,11 @@ impl Fetch {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.fetch() == None
+        self.pc >= self.inst_memory.len()
+    }
+
+    pub fn get_pc(&self) -> usize {
+        self.pc
     }
 
 }

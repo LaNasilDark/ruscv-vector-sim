@@ -2,11 +2,11 @@ use std::{cell::RefCell, rc::Rc};
 use std::collections::HashMap;
 use fetch::Fetch;
 use riscv_isa::Instruction;
-use unit::function_unit::{FunctionUnit, FunctionUnitKeyType};
+use unit::function_unit::{FunctionUnitType, VectorFunctionUnit, CommonFunctionUnit, FunctionUnitKeyType};
 use unit::latency_calculator::calc_func_cycle; // 添加这一行
 use log::{debug, info};
 use unit::memory_unit::LoadStoreUnit;
-
+use crate::sim::unit::function_unit::CommonEventResult;
 use crate::config::SimulatorConfig;
 use crate::inst::mem::{self, Direction, MemInst};
 use crate::inst::Inst;
@@ -21,7 +21,7 @@ pub mod register;
 
 pub struct Simulator {
     fetch_unit : Fetch,
-    function_unit : HashMap<FunctionUnitKeyType,FunctionUnit>,
+    function_unit : HashMap<FunctionUnitKeyType, FunctionUnitType>,
     memory_unit : LoadStoreUnit,
     register_file : Rc<RefCell<RegisterFile>>
 }
@@ -30,25 +30,24 @@ impl Simulator {
     pub fn new() -> Simulator {
         let config = SimulatorConfig::get_global_config().expect("Global config not initialized");
         
-        // 创建所有功能单元的HashMap
         let mut function_units = HashMap::new();
         
-        // 为每种功能单元类型创建实例
-        // 使用默认的事件队列大小和每事件字节数
-        let max_event_queue_size = 10; // 可以根据需要调整
         let bytes_per_event = 8; 
         let vector_bytes_per_event = SimulatorConfig::get_global_config().unwrap().get_data_length();
         
-        // 修改这里，为每个FunctionUnit传递对应的unit_type
-        function_units.insert(FunctionUnitKeyType::VectorAlu, FunctionUnit::new(max_event_queue_size, vector_bytes_per_event, FunctionUnitKeyType::VectorAlu));
-        function_units.insert(FunctionUnitKeyType::VectorMul, FunctionUnit::new(max_event_queue_size, vector_bytes_per_event, FunctionUnitKeyType::VectorMul));
-        function_units.insert(FunctionUnitKeyType::VectorDiv, FunctionUnit::new(max_event_queue_size, vector_bytes_per_event, FunctionUnitKeyType::VectorDiv));
-        function_units.insert(FunctionUnitKeyType::VectorSlide, FunctionUnit::new(max_event_queue_size, vector_bytes_per_event, FunctionUnitKeyType::VectorSlide));
-        function_units.insert(FunctionUnitKeyType::FloatAlu, FunctionUnit::new(max_event_queue_size, bytes_per_event, FunctionUnitKeyType::FloatAlu));
-        function_units.insert(FunctionUnitKeyType::FloatMul, FunctionUnit::new(max_event_queue_size, bytes_per_event, FunctionUnitKeyType::FloatMul));
-        function_units.insert(FunctionUnitKeyType::FloatDiv, FunctionUnit::new(max_event_queue_size, bytes_per_event, FunctionUnitKeyType::FloatDiv));
-        function_units.insert(FunctionUnitKeyType::IntegerAlu, FunctionUnit::new(max_event_queue_size, bytes_per_event, FunctionUnitKeyType::IntegerAlu));
-        function_units.insert(FunctionUnitKeyType::IntergerDiv, FunctionUnit::new(max_event_queue_size, bytes_per_event, FunctionUnitKeyType::IntergerDiv));
+        // Vector类型使用VectorFunctionUnit
+        function_units.insert(FunctionUnitKeyType::VectorAlu, FunctionUnitType::Vector(VectorFunctionUnit::new(vector_bytes_per_event, FunctionUnitKeyType::VectorAlu)));
+        function_units.insert(FunctionUnitKeyType::VectorMul, FunctionUnitType::Vector(VectorFunctionUnit::new(vector_bytes_per_event, FunctionUnitKeyType::VectorMul)));
+        function_units.insert(FunctionUnitKeyType::VectorMacc, FunctionUnitType::Vector(VectorFunctionUnit::new(vector_bytes_per_event, FunctionUnitKeyType::VectorMacc)));
+        function_units.insert(FunctionUnitKeyType::VectorDiv, FunctionUnitType::Vector(VectorFunctionUnit::new(vector_bytes_per_event, FunctionUnitKeyType::VectorDiv)));
+        function_units.insert(FunctionUnitKeyType::VectorSlide, FunctionUnitType::Vector(VectorFunctionUnit::new(vector_bytes_per_event, FunctionUnitKeyType::VectorSlide)));
+        
+        // 普通类型使用CommonFunctionUnit
+        function_units.insert(FunctionUnitKeyType::FloatAlu, FunctionUnitType::Common(CommonFunctionUnit::new(FunctionUnitKeyType::FloatAlu)));
+        function_units.insert(FunctionUnitKeyType::FloatMul, FunctionUnitType::Common(CommonFunctionUnit::new(FunctionUnitKeyType::FloatMul)));
+        function_units.insert(FunctionUnitKeyType::FloatDiv, FunctionUnitType::Common(CommonFunctionUnit::new( FunctionUnitKeyType::FloatDiv)));
+        function_units.insert(FunctionUnitKeyType::IntegerAlu, FunctionUnitType::Common(CommonFunctionUnit::new(FunctionUnitKeyType::IntegerAlu)));
+        function_units.insert(FunctionUnitKeyType::IntergerDiv, FunctionUnitType::Common(CommonFunctionUnit::new( FunctionUnitKeyType::IntergerDiv)));
         
         Simulator {
             fetch_unit: Fetch::new(),
@@ -66,7 +65,12 @@ impl Simulator {
         let result = match key {
             UnitKeyType::FuncKey(func_key) => {
                 let fu = self.function_unit.get_mut(&func_key).unwrap();
-                fu.handle_buffer_event(event)
+                match fu {
+                    FunctionUnitType::Vector(fu) => {
+                        fu.handle_buffer_event(event)
+                    },
+                    _ => unreachable!("Common Function Unit does not have buffer")
+                }
             },
             UnitKeyType::MemKey(mem_key) => {
                 self.memory_unit.handle_buffer_event(mem_key, event)
@@ -101,7 +105,23 @@ impl Simulator {
         debug!("Start processing function unit event queue");
         for (key, unit) in self.function_unit.iter_mut() {
             debug!("Processing function unit {:?} event queue", key);
-            unit.handle_event()?;
+            match unit {
+                FunctionUnitType::Common(fu) => {
+                    let res = fu.handle_event()?;
+                    match res {
+                        CommonEventResult::Nothing => {
+                            debug!("[{:?}] Function unit {:?} has no task end", key, key);
+                        },
+                        CommonEventResult::WriteResultTo(reg) => {
+                            debug!("[{:?}] Function unit {:?} write result to register {:?}", key, key, reg);
+                            self.register_file.borrow_mut().clean_write(&reg);
+                        }
+                    }
+                },
+                FunctionUnitType::Vector(fu) => {
+                    fu.handle_event()?;
+                }
+            }
         }
     
         debug!("Start processing memory unit event queue");
@@ -118,27 +138,40 @@ impl Simulator {
                     let cycle = calc_func_cycle(&func_inst);
                     debug!("Function instruction cycles: {}", cycle);
                     let fu = self.function_unit.get_mut(&func_inst.func_unit_key).unwrap();
-                    // 使用新的判断函数
-                    if fu.can_accept_new_instruction() {
-                        debug!("Function unit {:?} can accept new instruction, issuing", func_inst.func_unit_key);
-                        fu.issue(func_inst.clone())?;
-                        self.fetch_unit.next_pc();
-                        
-                        self.register_file.borrow_mut().add_task(&func_inst);
-                        debug!("Instruction issued successfully, PC advanced");
-                    } else {
-                        debug!("Function unit {:?} cannot accept new instruction yet, waiting", func_inst.func_unit_key);
+                    match fu {
+                        FunctionUnitType::Common(fu) => {
+                            // 检查功能单元是否可以接受新指令
+                            if self.register_file.borrow().can_issue_common_instruction(&func_inst) {
+                                fu.issue(func_inst.clone(), self.fetch_unit.get_pc())?;
+                                self.fetch_unit.next_pc();
+                                self.register_file.borrow_mut().add_common_task(&func_inst);
+                                debug!("Instruction issued successfully, PC advanced");
+                            } else {
+                                debug!("Function unit {:?} cannot accept new instruction yet, waiting", func_inst.func_unit_key);
+                            }
+                        },
+                        FunctionUnitType::Vector(fu) => {
+                            // 检查功能单元是否可以接受新指令
+                            if self.register_file.borrow().can_issue_vector_instruction(&func_inst) && fu.can_accept_new_instruction() {
+                                fu.issue(func_inst.clone(), self.fetch_unit.get_pc())?;
+                                self.fetch_unit.next_pc();
+                                self.register_file.borrow_mut().add_vector_task(&func_inst);
+                                debug!("Instruction issued successfully, PC advanced");
+                            } else {
+                                debug!("Function unit {:?} cannot accept new instruction yet, waiting", func_inst.func_unit_key);
+                            }
+                        }
                     }
                 },
                 Inst::Mem(mem_inst) => {
                     // 在try_issue函数中，处理Inst::Mem之前添加
                     self.memory_unit.debug_port_status();
                     // 使用新的判断函数
-                    if self.memory_unit.can_accept_new_instruction(mem_inst.dir) {
+                    if self.memory_unit.can_accept_new_instruction(mem_inst.dir) && self.register_file.borrow().can_issue_memory_instruction(&mem_inst) {
                         debug!("Memory unit can accept new instruction, issuing memory instruction: {:?}", mem_inst);
                         
                         // issue 这条指令
-                        let port_index = self.memory_unit.issue(mem_inst.clone())?;
+                        let port_index = self.memory_unit.issue(mem_inst.clone(), self.fetch_unit.get_pc())?;
                         
                         // 添加对寄存器文件的任务
                         self.register_file.borrow_mut().add_mem_task(&mem_inst, port_index);
@@ -178,9 +211,18 @@ impl Simulator {
     fn auto_increase_memory_write_consumed_bytes(&mut self) -> anyhow::Result<()> {
         self.memory_unit.auto_increase_memory_write_consumed_bytes()
     }
+
+    // 完成memory port需要的写
+    fn finish_read_port_writing_to_register(&mut self) -> anyhow::Result<()> {
+        let res = self.memory_unit.clean_read_port_result_buffer()?;
+        for reg in res {
+            self.register_file.borrow_mut().clean_write(&reg);
+        }
+        Ok(())
+    }
     pub fn main_sim_loop(&mut self) -> anyhow::Result<()> { 
         let mut total_cycle : u32 = 0;
-        let max_cycles : u32 = 400; // 设置最大周期数为20
+        let max_cycles : u32 = 100; // 设置最大周期数为20
         debug!("Starting main simulation loop");
         
         while !self.is_simulation_end() && total_cycle < max_cycles { // 添加周期限制条件
@@ -198,7 +240,10 @@ impl Simulator {
             // Step 1.3: Auto increase memory write consumed bytes
             info!("Step 1.3: Increasing consumed bytes for memory-type in write port result buffer");
             self.auto_increase_memory_write_consumed_bytes()?;
-    
+            
+            info!("Step 1.4: Clean the read port information(if it is a scalar register.");
+            self.finish_read_port_writing_to_register()?;
+            
             // Step 2: Update the event queues of all Units
             info!("Step 2: Updating event queues of all units");
             self.handle_unit_event_queue()?;

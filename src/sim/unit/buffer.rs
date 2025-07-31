@@ -148,19 +148,22 @@ impl InputBuffer {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResultBuffer {
-    pub destination: Option<EnhancedResource>
+    pub destination: Option<EnhancedResource>,
+    pub handle_pc : Option<usize>
 }
 
 impl ResultBuffer {
     // 添加使用全局配置的构造函数
     pub fn new_from_global() -> Self {
         ResultBuffer {
-            destination: None
+            destination: None,
+            handle_pc: None,
         }
     }
     
-    pub fn set_destination(&mut self, destination: EnhancedResource) -> Result<(), &'static str> {
+    pub fn set_destination(&mut self, destination: EnhancedResource, pc : usize) -> Result<(), &'static str> {
         self.destination = Some(destination);
+        self.handle_pc = Some(pc);
         Ok(())  
     }
     
@@ -214,6 +217,15 @@ impl ResultBuffer {
         } else {
             false
         }
+    }
+
+    pub fn all_data_ready(&self) -> bool {
+        if let Some(d) = &self.destination { 
+            if d.current_size == d.target_size {
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -444,7 +456,7 @@ impl BufferPair {
         self.input_buffer.set_resource(resource)
     }
     
-    pub(crate) fn set_output(&mut self, destination : EnhancedResource) {
+    pub(crate) fn set_output(&mut self, destination : EnhancedResource, pc : usize) {
         let resource_type = match &destination.resource_type {
             ResourceType::Register(reg_type) => format!("Register({:?})", reg_type),
             ResourceType::Memory => "Memory".to_string(),
@@ -454,6 +466,7 @@ impl BufferPair {
             self.owner, resource_type, destination.target_size);
         
         self.result_buffer.destination = Some(destination);
+        self.result_buffer.handle_pc = Some(pc);
     }
     
     // 添加一个方法来设置当前指令信息
@@ -498,7 +511,8 @@ impl BufferPair {
         self.input_buffer.resource.clear();
         
         // 清空 result_buffer
-        self.result_buffer.destination = None;
+        // self.result_buffer.destination = None;
+        // 暂时不清空 result_buffer
         
         debug!("[BufferPair] All buffers cleared successfully");
     }

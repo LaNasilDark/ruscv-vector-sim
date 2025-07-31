@@ -75,7 +75,7 @@ pub struct VectorRegister {
 
 ### Buffer System
 
-The simulator implements a buffer system to manage the flow of instructions and data. This helps simulate pipeline and out-of-order execution features found in modern processors.
+The simulator implements a buffer system to manage the flow of instructions and data. This helps simulate chaining execution features.
 
 ### Simulation Cycle
 
@@ -140,6 +140,12 @@ cargo run -- -i appendix/_chaintest/bin/chaintest -c ./config.toml -s 0x1023c -e
 ### Complex Example
 ```sh
 cargo run -- -i appendix/jacobi-2d_vector.exe -c ./config.toml -s 0x10cb2 -e 0x10d10
+```
+
+### Matmul Example
+
+```sh
+cargo run -- -i appendix/_matmul/bin/matmul_vector.exe -c ./config.toml -s 0x1021a -e 0x1023e
 ```
 
 ### Command Line Arguments

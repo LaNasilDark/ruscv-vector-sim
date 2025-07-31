@@ -1,6 +1,7 @@
 use std::fmt::Write;
 
-use crate::{config::SimulatorConfig, inst::mem::{Direction, MemInst}, sim::unit::buffer::{BufferEvent, BufferEventResult, BufferPair, ResourceType}};
+use crate::{config::SimulatorConfig, inst::mem::{Direction, MemInst}, sim::{register::RegisterType, unit::buffer::{BufferEvent, BufferEventResult, BufferPair, ResourceType}}};
+use goblin::pe::exception::Register;
 use log::debug;
 
 
@@ -254,23 +255,23 @@ impl LoadStoreUnit {
             }
         }
     }
-    pub fn issue(&mut self, mem_inst : MemInst) -> anyhow::Result<usize> {
+    pub fn issue(&mut self, mem_inst : MemInst, pc : usize) -> anyhow::Result<usize> {
         let index = self.set_port_event(mem_inst.clone())?;
         use crate::sim::unit::buffer::Resource;
         use crate::sim::unit::buffer::EnhancedResource;
         match mem_inst.dir {
         
             Direction::Read => {
-                self.read_port_buffer[index].set_input(vec![Resource::new(ResourceType::Register(mem_inst.mem_addr.dependency), mem_inst.mem_addr.dependency.get_bytes()), Resource::new(crate::sim::unit::buffer::ResourceType::Memory, mem_inst.get_total_bytes())])?;
+                self.read_port_buffer[index].set_input(vec![Resource::new(crate::sim::unit::buffer::ResourceType::Memory, mem_inst.get_total_bytes())])?;
 
-                self.read_port_buffer[index].set_output(EnhancedResource::new(crate::sim::unit::buffer::ResourceType::Register(mem_inst.reg), mem_inst.get_total_bytes()));
+                self.read_port_buffer[index].set_output(EnhancedResource::new(crate::sim::unit::buffer::ResourceType::Register(mem_inst.reg), mem_inst.get_total_bytes()), pc);
                 
                 // 记录当前正在处理的指令信息
                 self.read_port_buffer[index].set_current_instruction(crate::inst::Inst::Mem(mem_inst.clone()));
             },
             Direction::Write => {
-                self.write_port_buffer[index].set_input(vec![Resource::new(ResourceType::Register(mem_inst.mem_addr.dependency), mem_inst.mem_addr.dependency.get_bytes()),Resource::new(crate::sim::unit::buffer::ResourceType::Register(mem_inst.reg), mem_inst.get_total_bytes())])?;
-                self.write_port_buffer[index].set_output(EnhancedResource::new(crate::sim::unit::buffer::ResourceType::Memory, mem_inst.get_total_bytes()));
+                self.write_port_buffer[index].set_input(vec![Resource::new(crate::sim::unit::buffer::ResourceType::Register(mem_inst.reg), mem_inst.get_total_bytes())])?;
+                self.write_port_buffer[index].set_output(EnhancedResource::new(crate::sim::unit::buffer::ResourceType::Memory, mem_inst.get_total_bytes()), pc);
                 
                 // 记录当前正在处理的指令信息
                 self.write_port_buffer[index].set_current_instruction(crate::inst::Inst::Mem(mem_inst.clone()));
@@ -288,32 +289,46 @@ impl LoadStoreUnit {
                 // 获取每周期可以从内存读取的字节数
                 let memory_bytes_per_cycle = port.bytes_per_cycle;
                 
-                // 首先检查该端口的 input_buffer 中所有 Register 类型资源是否都已满
-                let all_registers_full = !self.read_port_buffer[i].input_buffer.resource.iter()
-                    .any(|r| matches!(r.resource_type, ResourceType::Register(_)) && !r.is_full());
-                
-                // 只有当所有 Register 类型资源都已满时，才处理 Memory 类型资源
-                if all_registers_full {
+
                     // 遍历 input_buffer 中的资源
-                    for resource in &mut self.read_port_buffer[i].input_buffer.resource {
-                        // 只处理 Memory 类型的资源
-                        if let ResourceType::Memory = resource.resource_type {
-                            // 计算可以增加的字节数（不超过目标大小）
-                            let bytes_to_add = memory_bytes_per_cycle.min(resource.target_size - resource.current_size);
-                            if bytes_to_add > 0 {
-                                // 增加当前字节数
-                                resource.current_size += bytes_to_add;
-                                debug!("Auto-increasing memory data: read port {}, adding {} bytes", i, bytes_to_add);
-                            }
+                for resource in &mut self.read_port_buffer[i].input_buffer.resource {
+                    // 只处理 Memory 类型的资源
+                    if let ResourceType::Memory = resource.resource_type {
+                        // 计算可以增加的字节数（不超过目标大小）
+                        let bytes_to_add = memory_bytes_per_cycle.min(resource.target_size - resource.current_size);
+                        if bytes_to_add > 0 {
+                            // 增加当前字节数
+                            resource.current_size += bytes_to_add;
+                            debug!("Auto-increasing memory data: read port {}, adding {} bytes", i, bytes_to_add);
                         }
                     }
-                } else {
-                    debug!("Not increasing memory data for read port {} because not all register resources are full", i);
                 }
+
             }
         }
-        
+
+        for i in 0..self.write_port_used.len() {
+            if let Some(ref port) = self.read_port_used[i] {
+                // 获取每周期可以从内存读取的字节数
+                let memory_bytes_per_cycle = port.bytes_per_cycle;
+                
+
+                    // 遍历 input_buffer 中的资源
+                for resource in &mut self.write_port_buffer[i].input_buffer.resource {
+                    // 只处理 Memory 类型的资源
+                    use crate::sim::register::RegisterType;
+                    if matches!(resource.resource_type, ResourceType::Register(RegisterType::ScalarRegister(_))) || matches!(resource.resource_type, ResourceType::Register(RegisterType::FloatRegister(_))) {
+                        // 如果输入是普通的scalar register，那么直接把input buffer 填满
+                        // 因为在检查的时候已经检查过当前寄存器没有在被写
+                        resource.current_size = resource.target_size;
+                    }
+                }
+
+            }
+        }
         Ok(())
+    
+        
     }
     // 添加一个新函数，用于自动增加写端口的ResultBuffer的consumed_bytes
     pub fn auto_increase_memory_write_consumed_bytes(&mut self) -> anyhow::Result<()> {
@@ -366,5 +381,19 @@ impl LoadStoreUnit {
                 debug!("Write port {}: Idle", i);
             }
         }
+    }
+
+    pub fn clean_read_port_result_buffer(&mut self) -> anyhow::Result<Vec<RegisterType>> {
+        let mut res = vec![];
+        for i in 0..self.read_port_used.len() {
+            if let Some(p) = &mut self.read_port_used[i] {
+                if self.read_port_buffer[i].result_buffer.all_data_ready() {
+                    if matches!(p.raw_inst.reg, RegisterType::FloatRegister(_)) || matches!(p.raw_inst.reg, RegisterType::ScalarRegister(_)) {
+                        res.push(p.raw_inst.reg);
+                    }
+                }
+            }
+        }
+        Ok(res)
     }
 }

@@ -18,7 +18,8 @@ impl FuncInst {
 
         let (destination, resource, func_unit_key) = match riscv_isa {
             Instruction::ADD { rd, rs1, rs2 } 
-            | Instruction::ADDW { rd, rs1, rs2 }=> {
+            | Instruction::ADDW { rd, rs1, rs2 } 
+            | Instruction::SUB { rd, rs1, rs2 }=> {
                 (RegisterType::ScalarRegister(rd),
             vec![RegisterType::ScalarRegister(rs1), RegisterType::ScalarRegister(rs2)],
                 FunctionUnitKeyType::IntegerAlu)
@@ -46,11 +47,16 @@ impl FuncInst {
                 vec![RegisterType::VectorRegister(vrs1), RegisterType::VectorRegister(vrs2)],
                 FunctionUnitKeyType::VectorMul)
             }
+            Instruction::VMACC_VV { vrd, vrs1, vrs2 } => {
+                (RegisterType::VectorRegister(vrd),
+                vec![RegisterType::VectorRegister(vrd), RegisterType::VectorRegister(vrs1), RegisterType::VectorRegister(vrs2)],
+                FunctionUnitKeyType::VectorMacc)
+            },
             Instruction::VFSLIDE1DOWN_VF { vrd, frs1, vrs2 }
             | Instruction::VFSLIDE1UP_VF { vrd, frs1, vrs2 } => {
                 (RegisterType::VectorRegister(vrd),
             vec![RegisterType::FloatRegister(frs1), RegisterType::VectorRegister(vrd), RegisterType::VectorRegister(vrs2)], FunctionUnitKeyType::VectorSlide)
-            }
+            },
             _ => unimplemented!("Not supported instruction {:?}", riscv_isa),
         };
         FuncInst {

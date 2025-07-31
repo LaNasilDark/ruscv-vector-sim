@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use crate::inst::Inst;
 use crate::inst::{func::FuncInst, MemoryPlace};
 
 use crate::sim::register::RegisterType;
@@ -7,17 +8,24 @@ use crate::sim::unit::buffer::{BufferEvent, BufferEventResult, BufferPair, Resou
 use crate::sim::unit::latency_calculator::calc_func_cycle;
 use crate::config::SimulatorConfig;
 use log::debug; // 添加log模块导入
+use crate::sim::unit::buffer::EnhancedResource;
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum FunctionUnitKeyType {
     VectorAlu,
     VectorMul,
     VectorDiv,
     VectorSlide,
+    VectorMacc,
     FloatAlu,
     FloatMul,
     FloatDiv,
     IntegerAlu,
     IntergerDiv
+}
+
+pub enum FunctionUnitType {
+    Common(CommonFunctionUnit),
+    Vector(VectorFunctionUnit)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,6 +42,11 @@ pub struct EventGenerator {
     bytes_per_event: u32,
     total_bytes: u32,
     processed_bytes: u32,
+}
+
+pub enum CommonEventResult {
+    Nothing,
+    WriteResultTo(RegisterType),
 }
 
 impl EventGenerator {
@@ -111,28 +124,53 @@ impl EventGenerator {
 
 
 
-pub struct FunctionUnit {
+pub struct CommonFunctionUnit {
     occupied : bool,
-    max_event_queue_size : usize,
+    // 删除 max_event_queue_size : usize,
+    event_queue : VecDeque<Event>,
+    unit_type : FunctionUnitKeyType,
+    current_inst : Option<FuncInst>
+}
+
+pub struct VectorFunctionUnit {
+    occupied : bool,
+    // 删除 max_event_queue_size : usize,
     event_queue : VecDeque<Event>,
     current_event : Option<EventGenerator>,
     bytes_per_event : u32,
     buffer_pair : BufferPair,
-    unit_type : FunctionUnitKeyType
+    unit_type : FunctionUnitKeyType,
+    handle_pc : Option<usize>,
+    current_inst : Option<FuncInst>
 }
 
-impl FunctionUnit {
-    pub fn new(max_event_queue_size: usize, bytes_per_event: u32, unit_type: FunctionUnitKeyType) -> Self {
+
+pub struct ResultBufferTask {
+    pub inst : FuncInst,
+}
+
+pub enum ResultBufferCheckResult {
+    WaitToComplete,
+    NoTaskInUnit,
+    SameWithUnit,
+    Stale(ResultBufferTask),
+    NoTaskInBuffer(ResultBufferTask)
+}
+
+impl VectorFunctionUnit {
+    pub fn new(bytes_per_event: u32, unit_type: FunctionUnitKeyType) -> Self {
         use crate::sim::unit::buffer::BufferOwnerType;
         
-        FunctionUnit {
+        VectorFunctionUnit {
             occupied: false,
-            max_event_queue_size,
+            // 删除 max_event_queue_size,
             event_queue: VecDeque::new(),
             current_event: None,
             bytes_per_event,
             buffer_pair: BufferPair::new_with_owner(BufferOwnerType::FunctionUnit(unit_type)),
-            unit_type
+            unit_type,
+            handle_pc : None,
+            current_inst : None
         }
     }
 
@@ -161,6 +199,49 @@ impl FunctionUnit {
     pub(crate) fn is_empty(&self) -> bool{
         !self.occupied
     }
+
+    pub(crate) fn is_result_buffer_stale(&self) -> ResultBufferCheckResult{ 
+        if self.handle_pc.is_none() {
+            return ResultBufferCheckResult::NoTaskInUnit;
+        }
+        let current_pc = self.handle_pc.unwrap();
+        if let Some(pc) = self.buffer_pair.result_buffer.handle_pc {
+            if pc != current_pc {
+                if self.buffer_pair.result_buffer.is_completed() {
+                    return ResultBufferCheckResult::Stale(ResultBufferTask {
+                        inst : self.current_inst.clone().unwrap(),
+                    });
+                } else {
+                    return ResultBufferCheckResult::WaitToComplete
+                }
+            } else {
+                return ResultBufferCheckResult::SameWithUnit
+            }
+        } else {
+            return ResultBufferCheckResult::NoTaskInBuffer(ResultBufferTask { inst: self.current_inst.clone().unwrap() })
+        }
+
+    }
+    pub(crate) fn check_result_buffer(&mut self) -> anyhow::Result<ResultBufferCheckResult> {
+        return Ok(self.is_result_buffer_stale());
+    }
+
+    pub(crate) fn set_result_buffer(&mut self) -> anyhow::Result<()> {
+        let func_inst = self.current_inst.as_ref().unwrap();
+        self.buffer_pair.set_output(EnhancedResource{ 
+             resource_type: ResourceType::Register(func_inst.destination.clone()), 
+             current_size: 0, 
+             target_size: func_inst.destination.get_bytes(),
+             consumed_bytes: 0
+        }, self.handle_pc.unwrap());
+        Ok(())
+    }
+    pub(crate) fn is_vector(&self) -> bool {
+        match self.unit_type {
+            FunctionUnitKeyType::VectorAlu | FunctionUnitKeyType::VectorMul | FunctionUnitKeyType::VectorMacc | FunctionUnitKeyType::VectorSlide => true,
+            _ => false
+        }
+    }
     pub fn handle_event(&mut self) -> anyhow::Result<()>{
         debug!("[{:?}] Starting handle_event: event_queue_size={}, occupied={}", 
                self.unit_type, self.event_queue.len(), self.occupied);
@@ -187,8 +268,7 @@ impl FunctionUnit {
                 break;
             }
         }
-        debug!("[{:?}] Completed and removed {} events from queue", self.unit_type, completed_events);
-    
+
         // 保证每次只加入一个事件
         if let Some(event_gen) = self.current_event.as_mut() {
             debug!("[{:?}] Processing current event generator", self.unit_type);
@@ -232,7 +312,7 @@ impl FunctionUnit {
         assert!(self.occupied == false);
         self.occupied = true;
     }
-    pub fn issue(&mut self, func_inst : FuncInst) -> anyhow::Result<()> {
+    pub fn issue(&mut self, func_inst : FuncInst, pc: usize) -> anyhow::Result<()> {
         self.set_occupied();
         
         // 添加详细的调试信息
@@ -255,6 +335,7 @@ impl FunctionUnit {
                    (config.vector_config.software.sew / 8) * config.vector_config.software.vl);
         }
         
+        self.current_inst = Some(func_inst.clone());
         self.current_event = Some(EventGenerator::new(func_inst.clone(), calc_func_cycle(&func_inst), self.bytes_per_event, total_bytes));
         use crate::sim::unit::buffer::EnhancedResource;
         use crate::sim::unit::buffer::Resource;
@@ -263,13 +344,17 @@ impl FunctionUnit {
             current_size: 0, 
             target_size: r.get_bytes()
         }).collect::<Vec<_>>())?;
-    
+
+        // Set pc for the current instruction
+        self.handle_pc = Some(pc);
+
+
         self.buffer_pair.set_output(EnhancedResource{ 
             resource_type: ResourceType::Register(func_inst.destination.clone()), 
             current_size: 0, 
             target_size: func_inst.destination.get_bytes(),
             consumed_bytes: 0
-        });
+        }, pc);
         
         // 记录当前正在处理的指令信息
         self.buffer_pair.set_current_instruction(crate::inst::Inst::Func(func_inst.clone()));
@@ -283,7 +368,6 @@ impl FunctionUnit {
             return false;
         }
         
-        // 检查事件队列是否为空
         if !self.event_queue.is_empty() {
             return false;
         }
@@ -293,16 +377,116 @@ impl FunctionUnit {
             return false;
         }
         
-        // 检查ResultBuffer是否为空
-        if let Some(ref destination) = self.buffer_pair.result_buffer.destination {
-            if destination.current_size > 0 {
-                return false;
-            }
-        }
-        
-        // 所有条件都满足，可以接受新指令
+
         true
     }
 }
 
+impl CommonFunctionUnit {
+    pub fn new(unit_type: FunctionUnitKeyType) -> Self {
+        CommonFunctionUnit {
+            occupied: false,
+            event_queue: VecDeque::new(),
+            unit_type,
+            current_inst: None
+        }
+    }
+    
+    pub fn issue(&mut self, func_inst: FuncInst, pc: usize) -> anyhow::Result<()> {
+        self.occupied = true;
+        self.current_inst = Some(func_inst);
+        Ok(())
+    }
+    pub fn is_empty(&self) -> bool {
+        !self.occupied
+    }
+    pub fn check_result_buffer(&mut self) -> anyhow::Result<ResultBufferCheckResult> {
+        Ok(ResultBufferCheckResult::NoTaskInUnit)
+    }
+    
+    pub fn set_result_buffer(&mut self) -> anyhow::Result<()> {
+        Ok(())
+    }
+    pub fn free_unit(&mut self) {
+        self.occupied = false;
+        self.current_inst = None;
+    }
+    pub fn handle_event(&mut self) -> anyhow::Result<CommonEventResult> {
+        debug!("[{:?}] Starting handle_event: event_queue_size={}, occupied={}", 
+               self.unit_type, self.event_queue.len(), self.occupied);
+        
+        // 更新所有事件的剩余周期
+        self.event_queue.iter_mut().for_each(
+            |v| {
+                debug!("[{:?}] Decreasing event cycle: remained_cycle={} -> {}, target_register={:?}, result_bytes={} bytes", 
+                       self.unit_type, v.remained_cycle, v.remained_cycle - 1, v.target_register, v.result_bytes);
+                v.remained_cycle -= 1;
+            }
+        );
+        let mut end_event = vec![];
+        // 清除队列中已完成的事件
+        while let Some(event) = self.event_queue.back() {
+            if event.remained_cycle == 0 {
+                debug!("[{:?}] Event completed: target_register={:?}, result_bytes={} bytes", 
+                       self.unit_type, event.target_register, event.result_bytes);
+                end_event.push(event.target_register.clone());
+                self.event_queue.pop_back();
+            } else {
+                break;
+            }
+        }
+        
+        // 如果有当前指令且事件队列为空，生成新事件
+        if let Some(ref func_inst) = self.current_inst {
+            debug!("[{:?}] Generating event for current instruction: {:?}", 
+                    self.unit_type, func_inst.raw);
+            
+            let latency = calc_func_cycle(func_inst);
+            let result_bytes = func_inst.total_process_bytes();
+            
+            let event = Event {
+                remained_cycle: latency,
+                target_register: func_inst.destination.clone(),
+                result_bytes,
+            };
+            
+            debug!("[{:?}] Adding new event to queue: remained_cycle={}, target_register={:?}, result_bytes={} bytes", 
+                    self.unit_type, event.remained_cycle, event.target_register, event.result_bytes);
+            
+            self.event_queue.push_front(event);
 
+            debug!("[{:?}] Remove the current instruction", self.unit_type);
+
+            self.free_unit();
+        }
+        
+        
+        debug!("[{:?}] Finished handle_event: event_queue_size={}, occupied={}", 
+               self.unit_type, self.event_queue.len(), self.occupied);
+        
+        match end_event.len() {
+            0 => {
+                Ok(CommonEventResult::Nothing)
+            },
+            1 => {
+                Ok(CommonEventResult::WriteResultTo(end_event[0]))
+            },
+            _ => {
+                unreachable!("Why there is more than one event end?")
+            }
+        }
+    }
+    
+    // ... existing code ...
+
+}
+
+
+impl FunctionUnitType {
+    pub fn is_empty(&self) -> bool {
+        match self {
+            FunctionUnitType::Common(c) => c.is_empty(),
+            FunctionUnitType::Vector(v) => v.is_empty() 
+        }
+    }
+}
