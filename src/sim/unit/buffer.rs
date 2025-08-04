@@ -16,7 +16,8 @@ pub enum ResourceType {
 pub struct Resource {
     pub resource_type : ResourceType,
     pub target_size : u32,
-    pub current_size : u32
+    pub current_size : u32,
+    pub total_saved_size : u32,
 }
 
 impl Resource {
@@ -24,17 +25,18 @@ impl Resource {
         Resource {
             resource_type,
             target_size,
-            current_size: 0
+            current_size: 0,
+            total_saved_size: 0
         }
     }
     
     pub fn is_full(&self) -> bool {
-        self.current_size >= self.target_size
+        self.total_saved_size >= self.target_size
     }
     
     pub fn remaining_capacity(&self) -> u32 {
-        if self.target_size > self.current_size {
-            self.target_size - self.current_size
+        if self.target_size > self.total_saved_size {
+            self.target_size - self.total_saved_size
         } else {
             0
         }
@@ -45,6 +47,7 @@ impl Resource {
         let available_space = self.remaining_capacity();
         let actual_append = std::cmp::min(available_space, append_length);
         self.current_size += actual_append;
+        self.total_saved_size += actual_append;
         actual_append
     }
     
@@ -392,8 +395,8 @@ impl BufferPair {
         // 显示更新后的状态
         if let Some(ref dest) = self.result_buffer.destination {
             debug!("[BufferPair] Result buffer after increase: Current={}/{} bytes ({:.2}%), Total processed={}/{} bytes ({:.2}%)", 
-                dest.current_size, dest.target_size,
-                (dest.current_size as f32 / dest.target_size as f32) * 100.0,
+                dest.total_saved_size, dest.target_size,
+                (dest.total_saved_size as f32 / dest.target_size as f32) * 100.0,
                 dest.total_processed_bytes(), dest.target_size,
                 (dest.total_processed_bytes() as f32 / dest.target_size as f32) * 100.0);
         }
@@ -426,8 +429,8 @@ impl BufferPair {
         .collect::<Vec<_>>();
 
         match v.len() {
-            0 | 1 => anyhow::bail!("Not enough register resource in the input buffer"),
-            2 => Ok(v[1]),
+            0 => anyhow::bail!("There must be a register resource for memory writing"),
+            1 => Ok(v[0]),
             _ => anyhow::bail!("Multiple register resource in the input buffer")
         }
     }
@@ -523,6 +526,7 @@ pub struct EnhancedResource {
     pub resource_type: ResourceType,
     pub target_size: u32,       // 总共需要多少字节
     pub current_size: u32,      // 当前存储了多少字节
+    pub total_saved_size : u32, // 累计存储了多少字节
     pub consumed_bytes: u32     // 已经消耗了多少字节
 }
 
@@ -532,7 +536,8 @@ impl EnhancedResource {
             resource_type,
             target_size,
             current_size: 0,
-            consumed_bytes: 0
+            consumed_bytes: 0,
+            total_saved_size: 0
         }
     }
     
@@ -553,6 +558,7 @@ impl EnhancedResource {
         let available_space = self.remaining_capacity();
         let actual_append = std::cmp::min(available_space, append_length);
         self.current_size += actual_append;
+        self.total_saved_size += actual_append;
         actual_append
     }
     
@@ -565,7 +571,7 @@ impl EnhancedResource {
     }
     
     pub fn total_processed_bytes(&self) -> u32 {
-        self.current_size
+        self.consumed_bytes
     }
 
     // 检查是否已完成所有处理

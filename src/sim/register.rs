@@ -57,20 +57,42 @@ pub struct CommonRegister { // 8 bytes Register
     pub write_instruction : Option<Inst>,
 }
 
-pub trait RegisterTaskHandler: 'static {
-    fn task_queue(&self) -> &VecDeque<RegisterTask>;
-    fn task_queue_mut(&mut self) -> &mut VecDeque<RegisterTask>;
-    fn get_total_bytes(&self) -> u32;
-    fn init_current_index(&mut self);
-    fn current_handle_index(&self) -> usize;
-    fn update_handle_index(&mut self, index : usize);
-    fn get_register_type_info(&self) -> String; // 新增方法，用于获取寄存器类型信息
-    
-    fn get_current_task_unit_key(&self) -> UnitKeyType {
+
+// 为 VectorRegister 实现新增的方法
+impl VectorRegister {
+    pub fn get_current_task_unit_key(&self) -> UnitKeyType {
         self.task_queue()[self.current_handle_index()].unit_key.clone()
     }
+    pub fn init_current_index(&mut self) {
+        self.current_index = self.task_queue.len();
+    }
+
+    fn current_handle_index(&self) -> usize {
+        self.current_index
+    }
+
+    pub fn task_queue(&self) -> &VecDeque<RegisterTask> {
+        &self.task_queue
+    }
+
+    fn task_queue_mut(&mut self) -> &mut VecDeque<RegisterTask> {
+        &mut self.task_queue
+    }
+
+    fn get_total_bytes(&self) -> u32 {
+        self.total_bytes
+    }
+
+    fn update_handle_index(&mut self, index : usize) {
+        self.current_index = index;
+    }
     
-    fn handle_one_task(&self, index : usize) -> Option<BufferEvent>{
+    fn get_register_type_info(&self) -> String {
+        format!("VectorRegister({})", self.id)
+    }
+
+    
+    pub fn handle_one_task(&self, index : usize) -> Option<BufferEvent>{
         let q = self.task_queue();
         let forward_bytes = SimulatorConfig::get_global_config().unwrap().get_maximum_forward_bytes().min(self.get_total_bytes() - q[index].current_place);
         
@@ -113,7 +135,7 @@ pub trait RegisterTaskHandler: 'static {
         }
     }
 
-    fn handle_event_result(&mut self, result : BufferEventResult) {
+    pub fn handle_event_result(&mut self, result : BufferEventResult) {
         let index = self.current_handle_index();
         let total_bytes = self.get_total_bytes();
         let reg_type_info = self.get_register_type_info(); // 使用新方法获取寄存器类型信息
@@ -128,14 +150,36 @@ pub trait RegisterTaskHandler: 'static {
             reg_type_info, index, q[index].current_place, total_bytes, 
             (q[index].current_place as f32 / total_bytes as f32) * 100.0,
             q[index].unit_key, q[index].behavior);
-            
+        
+        let mut need_decrease_read = false;
+        let mut need_decrease_write = false;
         if index == q.len() - 1 && q[index].current_place == total_bytes {
             debug!("Task completed for {} Task [{}], removing from queue", reg_type_info, index);
+            match q[index].behavior {
+                UnitBehavior::Read => {
+                    need_decrease_read = true;
+                },
+                UnitBehavior::Write => {
+                    need_decrease_write = true;
+                },
+            }
             q.pop_back();
+        }
+        if need_decrease_read {
+            // 减少读取计数：任务完成后释放读取资源
+            debug!("Decreasing read count for completed {} read task", reg_type_info);
+            self.decrease_read_count();
+            debug!("Read count after decrease: {} for {}", self.get_read_count(), reg_type_info);
+        }
+        if need_decrease_write {
+            // 减少写入计数：任务完成后释放写入资源
+            debug!("Decreasing write count for completed {} write task", reg_type_info);
+            self.decrease_write_count();
+            debug!("Write count after decrease: {} for {}", self.get_write_count(), reg_type_info);
         }
     }
 
-    fn generate_event(&mut self) -> Option<BufferEvent> {
+    pub fn generate_event(&mut self) -> Option<BufferEvent> {
         let mut index = self.current_handle_index();
         let reg_type_info = self.get_register_type_info(); // 使用新方法获取寄存器类型信息
         
@@ -164,37 +208,6 @@ pub trait RegisterTaskHandler: 'static {
     }
 }
 
-// 为 VectorRegister 实现新增的方法
-impl RegisterTaskHandler for VectorRegister {
-    fn init_current_index(&mut self) {
-        self.current_index = self.task_queue.len();
-    }
-
-    fn current_handle_index(&self) -> usize {
-        self.current_index
-    }
-
-    fn task_queue(&self) -> &VecDeque<RegisterTask> {
-        &self.task_queue
-    }
-
-    fn task_queue_mut(&mut self) -> &mut VecDeque<RegisterTask> {
-        &mut self.task_queue
-    }
-
-    fn get_total_bytes(&self) -> u32 {
-        self.total_bytes
-    }
-
-    fn update_handle_index(&mut self, index : usize) {
-        self.current_index = index;
-    }
-    
-    fn get_register_type_info(&self) -> String {
-        format!("VectorRegister({})", self.id)
-    }
-}
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RegisterFile {
@@ -213,6 +226,28 @@ impl CommonRegister {
     }
 }
 
+impl VectorRegister {
+    pub fn get_read_count(&self) -> u32 {
+        self.read_count
+    }
+
+    pub fn get_write_count(&self) -> u32 {
+        self.write_count
+    }
+    pub fn decrease_read_count(&mut self) {
+        self.read_count -= 1
+    }
+    pub fn decrease_write_count(&mut self) {
+        self.write_count -= 1
+    }
+    pub fn increase_read_count(&mut self) {
+        self.read_count += 1
+    }
+    pub fn increase_write_count(&mut self) {
+        self.write_count += 1
+    }
+
+}
 impl RegisterFile {
     pub fn new() -> Self {
         let mut scalar_registers = Vec::with_capacity(32);
@@ -256,10 +291,10 @@ impl RegisterFile {
         }
     }
 
-    pub fn iter_mut_tasks(&mut self) -> impl Iterator<Item = &mut dyn RegisterTaskHandler> {
+    pub fn iter_mut_tasks(&mut self) -> impl Iterator<Item = &mut VectorRegister> {
         // 将三种寄存器切片转换为 trait 对象切片并连接起来
         // let scalar_iter = self.scalar_registers.iter_mut().map(|r| r as &mut dyn RegisterTaskHandler);
-        let vector_iter = self.vector_registers.iter_mut().map(|r| r as &mut dyn RegisterTaskHandler);
+        let vector_iter = self.vector_registers.iter_mut();
         // let float_iter = self.float_registers.iter_mut().map(|r| r as &mut dyn RegisterTaskHandler);
         
         // 使用 chain 方法将三个迭代器连接成一个
@@ -289,17 +324,23 @@ impl RegisterFile {
     pub fn add_vector_task(&mut self, func_inst : &FuncInst) {
         let unit_key = UnitKeyType::FuncKey(func_inst.func_unit_key);
         debug!("Adding vector task: {:?}, target unit: {:?}", func_inst.raw, unit_key);
+        
+        // 为源寄存器添加读任务并更新读计数
         func_inst.resource.iter().enumerate().for_each(|(i,r)| {
             match r {
                 RegisterType::VectorRegister(id) => {
-                    debug!("Adding vector register task: register ID: {}, resource index: {}", id, i);
+                    let old_count = self.vector_registers[*id as usize].get_read_count();
                     self.vector_registers[*id as usize].task_queue_mut().push_front(RegisterTask::new(i, UnitBehavior::Read , unit_key.clone()));
+                    self.vector_registers[*id as usize].increase_read_count();
+                    let new_count = self.vector_registers[*id as usize].get_read_count();
+                    debug!("[READ_COUNT_DEBUG] Vector register {} read count: {} -> {} (added read task)", id, old_count, new_count);
                 },
                 _ => {}
             }
         });
+        
+        // 为目标寄存器添加写任务并更新写计数
         match &func_inst.destination {
-
             RegisterType::ScalarRegister(id) => {
                 debug!("Marking scalar register {} as being written by instruction: {:?}", id, func_inst.raw);
                 self.scalar_registers[*id as usize].set_write_instruction(Inst::Func(func_inst.clone()));
@@ -309,10 +350,12 @@ impl RegisterFile {
                 self.float_registers[*id as usize].set_write_instruction(Inst::Func(func_inst.clone()));
             },
             RegisterType::VectorRegister(id) => {
-                debug!("Adding vector register task: register ID: {}, resource index: {}", id, 0);
+                let old_count = self.vector_registers[*id as usize].get_write_count();
                 self.vector_registers[*id as usize].task_queue_mut().push_front(RegisterTask::new(0, UnitBehavior::Write , unit_key.clone()));
+                self.vector_registers[*id as usize].increase_write_count();
+                let new_count = self.vector_registers[*id as usize].get_write_count();
+                debug!("[WRITE_COUNT_DEBUG] Vector register {} write count: {} -> {} (added write task)", id, old_count, new_count);
             },
-
         }
     }
     
@@ -336,7 +379,21 @@ impl RegisterFile {
         match mem_inst.reg {
             RegisterType::VectorRegister(id) => {
                 debug!("Adding vector register task for data: register ID: {}, behavior: {:?}", id, behavior);
-                self.vector_registers[id as usize].task_queue_mut().push_front(RegisterTask::new(resource_index, behavior, unit_key.clone()));
+                self.vector_registers[id as usize].task_queue_mut().push_front(RegisterTask::new(resource_index, behavior.clone(), unit_key.clone()));
+                match behavior {
+                    UnitBehavior::Read => {
+                        let old_count = self.vector_registers[id as usize].get_read_count();
+                        self.vector_registers[id as usize].increase_read_count();
+                        let new_count = self.vector_registers[id as usize].get_read_count();
+                        debug!("[READ_COUNT_DEBUG] Vector register {} read count: {} -> {} (added read task)", id, old_count, new_count);
+                    },
+                    UnitBehavior::Write => {
+                        let old_count = self.vector_registers[id as usize].get_write_count();
+                        self.vector_registers[id as usize].increase_write_count();
+                        let new_count = self.vector_registers[id as usize].get_write_count();
+                        debug!("[WRITE_COUNT_DEBUG] Vector register {} write count: {} -> {} (added write task)", id, old_count, new_count);        
+                    },
+                }
             },
             RegisterType::FloatRegister(id) if mem_inst.dir == Direction::Read => {
                 self.float_registers[id as usize].set_write_instruction(Inst::Mem(*mem_inst));
@@ -353,18 +410,36 @@ impl RegisterFile {
     
     /// 检查寄存器是否有未完成的写操作
     pub fn has_unfinished_writes(&self, reg: &RegisterType) -> bool {
-        match reg {
+        let result = match reg {
             RegisterType::ScalarRegister(id) => {
                 let register = &self.scalar_registers[*id as usize];
-                register.is_in_an_unfinished_write()
+                let has_write = register.is_in_an_unfinished_write();
+                if has_write {
+                    if let Some(ref write_inst) = register.write_instruction {
+                        debug!("Register {:?} has unfinished write from instruction: {:?}", reg, write_inst);
+                    } else {
+                        unreachable!("Register {:?} has unfinished write but no instruction info", reg);
+                    }
+                }
+                has_write
             },
             
             RegisterType::FloatRegister(id) => {
                 let register = &self.float_registers[*id as usize];
-                register.is_in_an_unfinished_write()
+                let has_write = register.is_in_an_unfinished_write();
+                if has_write {
+                    if let Some(ref write_inst) = register.write_instruction {
+                        debug!("Register {:?} has unfinished write from instruction: {:?}", reg, write_inst);
+                    } else {
+                        debug!("Register {:?} has unfinished write but no instruction info", reg);
+                    }
+                }
+                has_write
             },
             _ => unreachable!("Only check non-vector register"),
-        }
+        };
+        
+        result
     }
     
     /// 检查common指令的所有操作数是否可以issue（没有未完成的写）
@@ -372,6 +447,7 @@ impl RegisterFile {
         // 检查所有源操作数是否有未完成的写
         for operand in &func_inst.resource {
             if self.has_unfinished_writes(operand) {
+                debug!("Cannot issue instruction {:?}: source operand {:?} has unfinished writes", func_inst.raw, operand);
                 return false;
             }
         }
@@ -386,33 +462,56 @@ impl RegisterFile {
     /// 检查vector指令是否可以issue
     /// 如果源操作数包含common寄存器，必须等待其写完成
     pub fn can_issue_vector_instruction(&self, func_inst: &FuncInst) -> bool {
+        // 获取配置中的端口限制
+        let config = crate::config::SimulatorConfig::get_global_config()
+            .expect("Global config not initialized");
+        let read_ports_limit = config.get_vector_register_read_ports_limit();
+        let write_ports_limit = config.get_vector_register_write_ports_limit();
+        
+        debug!("[ISSUE_CHECK_DEBUG] Checking vector instruction: {:?}", func_inst.raw);
+        debug!("[ISSUE_CHECK_DEBUG] Port limits - read: {}, write: {}", read_ports_limit, write_ports_limit);
+        
+        // 检查源操作数
         for operand in &func_inst.resource {
             match operand {
-                // 如果是common寄存器（scalar或float），必须等待写完成
                 RegisterType::ScalarRegister(_) | RegisterType::FloatRegister(_) => {
                     if self.has_unfinished_writes(operand) {
+                        debug!("[ISSUE_CHECK_DEBUG] Cannot issue: common register {:?} has unfinished writes", operand);
                         return false;
                     }
                 },
-                // vector寄存器可以并行处理，不需要等待写完成
-                RegisterType::VectorRegister(_) => {
-                    // TODO: 这里可以不检查，也可以限制读写任务的个数
+                RegisterType::VectorRegister(id) => {
+                    let current_read_count = self.vector_registers[*id as usize].get_read_count();
+                    debug!("[ISSUE_CHECK_DEBUG] Vector register {} current read count: {}, limit: {}", id, current_read_count, read_ports_limit);
+                    if current_read_count + 1 > read_ports_limit {
+                        debug!("[ISSUE_CHECK_DEBUG] Cannot issue: vector register {} read count would exceed limit ({} + 1 > {})", 
+                               id, current_read_count, read_ports_limit);
+                        return false;
+                    }
                 }
             }
         }
-
-        // 如果目标寄存器是common register，也要保证没有被写
-
+        
+        // 检查目标寄存器
         match &func_inst.destination {
             RegisterType::FloatRegister(_) | RegisterType::ScalarRegister(_) => {
                 if self.has_unfinished_writes(&func_inst.destination) {
+                    debug!("[ISSUE_CHECK_DEBUG] Cannot issue: destination register {:?} has unfinished writes", func_inst.destination);
                     return false;
                 }
             },
-            RegisterType::VectorRegister(_) => {
-                // TODO: 这里可以不检查，也可以限制读写任务的个数
+            RegisterType::VectorRegister(id) => {
+                let current_write_count = self.vector_registers[*id as usize].get_write_count();
+                debug!("[ISSUE_CHECK_DEBUG] Vector register {} current write count: {}, limit: {}", id, current_write_count, write_ports_limit);
+                if current_write_count + 1 > write_ports_limit {
+                    debug!("[ISSUE_CHECK_DEBUG] Cannot issue: vector register {} write count would exceed limit ({} + 1 > {})", 
+                           id, current_write_count, write_ports_limit);
+                    return false;
+                }
             }
         }
+        
+        debug!("[ISSUE_CHECK_DEBUG] Vector instruction can be issued");
         true
     }
     pub(crate) fn can_issue_memory_instruction(&self, mem_inst: &MemInst) -> bool {

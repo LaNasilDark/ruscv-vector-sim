@@ -141,13 +141,20 @@ impl Simulator {
                     match fu {
                         FunctionUnitType::Common(fu) => {
                             // 检查功能单元是否可以接受新指令
-                            if self.register_file.borrow().can_issue_common_instruction(&func_inst) {
+                            let can_issue_register = self.register_file.borrow().can_issue_common_instruction(&func_inst);
+                            
+                            debug!("Issue check for {:?}: register_file_ready={}", 
+                                   func_inst.raw, can_issue_register);
+                            
+                            if can_issue_register {
                                 fu.issue(func_inst.clone(), self.fetch_unit.get_pc())?;
                                 self.fetch_unit.next_pc();
                                 self.register_file.borrow_mut().add_common_task(&func_inst);
                                 debug!("Instruction issued successfully, PC advanced");
                             } else {
-                                debug!("Function unit {:?} cannot accept new instruction yet, waiting", func_inst.func_unit_key);
+                                if !can_issue_register {
+                                    debug!("Function unit {:?} cannot accept new instruction: register file not ready", func_inst.func_unit_key);
+                                }
                             }
                         },
                         FunctionUnitType::Vector(fu) => {

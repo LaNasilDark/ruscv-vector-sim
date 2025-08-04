@@ -316,6 +316,16 @@ impl SimulatorConfig {
     pub fn get_data_length(&self) -> u32 {
         self.vector_config.hardware.lane_number * self.vector_config.software.sew / 8
     }
+    
+    // 新增：获取向量寄存器读端口限制
+    pub fn get_vector_register_read_ports_limit(&self) -> u32 {
+        self.vector_register.ports.read_ports_limit
+    }
+    
+    // 新增：获取向量寄存器写端口限制
+    pub fn get_vector_register_write_ports_limit(&self) -> u32 {
+        self.vector_register.ports.write_ports_limit
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]

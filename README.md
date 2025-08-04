@@ -145,7 +145,21 @@ cargo run -- -i appendix/jacobi-2d_vector.exe -c ./config.toml -s 0x10cb2 -e 0x1
 ### Matmul Example
 
 ```sh
-cargo run -- -i appendix/_matmul/bin/matmul_vector.exe -c ./config.toml -s 0x1021a -e 0x1023e
+cargo run -- -i appendix/_matmul/bin/matmul_vector.exe -c ./config.toml -s 0x1021a -e 0x1023a
+```
+
+### Conflict Port Example
+First set the config "read_ports_limit" to 1
+
+```sh
+cargo run -- -i appendix/_conflict_port/bin/conflict_port.exe -c ./config.toml -s 0x1023c -e 0x10250
+```
+
+In the cycle 7 you will see
+
+```sh
+01:46:53 [DEBUG] (1) ruscv_vector_sim::sim::register: [ISSUE_CHECK_DEBUG] Vector register 9 current read count: 1, limit: 1
+01:46:53 [DEBUG] (1) ruscv_vector_sim::sim::register: [ISSUE_CHECK_DEBUG] Cannot issue: vector register 9 read count would exceed limit (1 + 1 > 1)
 ```
 
 ### Command Line Arguments

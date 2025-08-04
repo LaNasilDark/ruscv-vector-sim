@@ -228,12 +228,7 @@ impl VectorFunctionUnit {
 
     pub(crate) fn set_result_buffer(&mut self) -> anyhow::Result<()> {
         let func_inst = self.current_inst.as_ref().unwrap();
-        self.buffer_pair.set_output(EnhancedResource{ 
-             resource_type: ResourceType::Register(func_inst.destination.clone()), 
-             current_size: 0, 
-             target_size: func_inst.destination.get_bytes(),
-             consumed_bytes: 0
-        }, self.handle_pc.unwrap());
+        self.buffer_pair.set_output(EnhancedResource::new(ResourceType::Register(func_inst.destination.clone()), func_inst.destination.get_bytes()), self.handle_pc.unwrap());
         Ok(())
     }
     pub(crate) fn is_vector(&self) -> bool {
@@ -339,22 +334,13 @@ impl VectorFunctionUnit {
         self.current_event = Some(EventGenerator::new(func_inst.clone(), calc_func_cycle(&func_inst), self.bytes_per_event, total_bytes));
         use crate::sim::unit::buffer::EnhancedResource;
         use crate::sim::unit::buffer::Resource;
-        self.buffer_pair.set_input(func_inst.resource.iter().map(|r| Resource{
-            resource_type: ResourceType::Register(r.clone()), 
-            current_size: 0, 
-            target_size: r.get_bytes()
-        }).collect::<Vec<_>>())?;
+        self.buffer_pair.set_input(func_inst.resource.iter().map(|r| Resource::new(ResourceType::Register(r.clone()), r.get_bytes())).collect::<Vec<_>>())?;
 
         // Set pc for the current instruction
         self.handle_pc = Some(pc);
 
 
-        self.buffer_pair.set_output(EnhancedResource{ 
-            resource_type: ResourceType::Register(func_inst.destination.clone()), 
-            current_size: 0, 
-            target_size: func_inst.destination.get_bytes(),
-            consumed_bytes: 0
-        }, pc);
+        self.buffer_pair.set_output(EnhancedResource::new(ResourceType::Register(func_inst.destination.clone()), func_inst.destination.get_bytes()), pc);
         
         // 记录当前正在处理的指令信息
         self.buffer_pair.set_current_instruction(crate::inst::Inst::Func(func_inst.clone()));

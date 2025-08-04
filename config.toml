@@ -35,7 +35,7 @@ vlen = 4096 # (in bits) vlen must be greater than or equal sew * vl
 lane_number = 4
 
 [vector_register.ports]
-read_ports_limit = 2 # if you want unlimited ports number, please change this number large enough, like 64 or some number else
+read_ports_limit = 1 # if you want unlimited ports number, please change this number large enough, like 64 or some number else
 write_ports_limit = 1 # I believe that a write port is absolutely sufficient when the compiler allocates registers reasonably. However, if some odd instruction streams are constructed, increasing this value can also be considered.
 
 
