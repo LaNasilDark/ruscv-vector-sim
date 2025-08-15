@@ -370,9 +370,8 @@ impl BufferPair {
                 ResourceType::Register(reg_type) => format!("Register({:?})", reg_type),
                 ResourceType::Memory => "Memory".to_string(),
             };
-            debug!("[BufferPair] Output buffer: Type={}, Current={}/{} bytes ({:.2}%), Consumed={} bytes, Total processed={}/{} bytes ({:.2}%)", 
-                resource_type, dest.current_size, dest.target_size,
-                (dest.current_size as f32 / dest.target_size as f32) * 100.0,
+            debug!("[BufferPair] Output buffer: Type={}, Current saved bytes = {} bytes, Total saved bytes = {} bytes, Consumed={} bytes, Total processed={}/{} bytes ({:.2}%)", 
+                resource_type, dest.current_size, dest.total_saved_size,
                 dest.consumed_bytes,
                 dest.total_processed_bytes(), dest.target_size,
                 (dest.total_processed_bytes() as f32 / dest.target_size as f32) * 100.0);
@@ -514,8 +513,7 @@ impl BufferPair {
         self.input_buffer.resource.clear();
         
         // 清空 result_buffer
-        // self.result_buffer.destination = None;
-        // 暂时不清空 result_buffer
+        self.result_buffer.destination = None;
         
         debug!("[BufferPair] All buffers cleared successfully");
     }

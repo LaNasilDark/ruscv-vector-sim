@@ -341,8 +341,8 @@ impl LoadStoreUnit {
                 // 检查该端口的 result_buffer 中的目标资源是否为 Memory 类型
                 if let Some(ref mut destination) = self.write_port_buffer[i].result_buffer.destination {
                     if let ResourceType::Memory = destination.resource_type {
-                        // 计算可以增加的已消耗字节数（不超过目标大小）
-                        let bytes_to_add = memory_bytes_per_cycle.min(destination.target_size - destination.consumed_bytes);
+                        // 计算可以增加的已消耗字节数（不超过目前存储的字节大小）
+                        let bytes_to_add = memory_bytes_per_cycle.min(destination.current_size);
                         if bytes_to_add > 0 {
                             // 增加已消耗的字节数
                             destination.consumed_bytes += bytes_to_add;

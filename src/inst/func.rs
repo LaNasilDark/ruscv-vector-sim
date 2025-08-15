@@ -47,7 +47,7 @@ impl FuncInst {
                 vec![RegisterType::VectorRegister(vrs1), RegisterType::VectorRegister(vrs2)],
                 FunctionUnitKeyType::VectorMul)
             }
-            Instruction::VMACC_VV { vrd, vrs1, vrs2 } => {
+            Instruction::VFMACC_VV { vrd, vrs1, vrs2 } => {
                 (RegisterType::VectorRegister(vrd),
                 vec![RegisterType::VectorRegister(vrd), RegisterType::VectorRegister(vrs1), RegisterType::VectorRegister(vrs2)],
                 FunctionUnitKeyType::VectorMacc)
