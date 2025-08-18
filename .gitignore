@@ -1,3 +1,5 @@
 /target
 Cargo.lock
-sim.log
+*.log
+*.typ
+*.pdf

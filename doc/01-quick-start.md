@@ -55,17 +55,12 @@ The simulator will output:
 
 ### Quick Examples
 
-1. **Chain Test Example** (Basic functionality):
-   ```bash
-   cargo run -- -i appendix/_chaintest/bin/chaintest -c ./config.toml -s 0x1023c -e 0x10250
-   ```
-
-2. **Matrix Multiplication Example**:
+1. **Matrix Multiplication Example**:
    ```bash
    cargo run -- -i appendix/_matmul/bin/matmul_vector.exe -c ./config.toml -s 0x1021a -e 0x1023a
    ```
 
-3. **Jacobi 2D Example** (Complex vector operations):
+2. **Jacobi 2D Example** (Complex vector operations):
    ```bash
    cargo run -- -i appendix/jacobi-2d_vector.exe -c ./config.toml -s 0x10cb2 -e 0x10d10
    ```

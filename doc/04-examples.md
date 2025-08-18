@@ -167,7 +167,7 @@ But **vfadd.vv	v8, v8, v9** instruction is issued in cycle 6. Because the read p
 
 **vse64.v	v8, (a3)** instruction is issued in cycle 7
 
-#### Executioin
+#### Execution Stage
 
 The first event of **vfmul.vv	v9, v8, v9** is generated in cycle 3. The last event of **vfmul.vv	v9, v8, v9** is generated in cycle 10. And the last event ends in cycle 16.
 
