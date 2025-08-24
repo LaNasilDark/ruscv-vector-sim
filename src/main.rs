@@ -6,8 +6,10 @@ use ruscv_vector_sim::sim::Simulator;
 use simplelog::*;
 use std::any;
 use std::fs::File;
+use std::path::Path;
 use riscv_isa::{Decoder, Instruction, Target};
 use std::str::FromStr;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 
 use std::num::ParseIntError;
@@ -48,19 +50,40 @@ struct Args {
     verbose: bool,
 }
 
-fn init_logger() {
+fn init_logger(binary_path: &str) -> anyhow::Result<()> {
+    // 从二进制文件路径中提取程序名
+    let binary_name = Path::new(binary_path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("unknown");
+    
+    // 生成时间戳 (Unix时间戳格式)
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    
+    // 构造日志文件名: sim_程序名_时间戳.log
+    let log_filename = format!("sim_{}_{}.log", binary_name, timestamp);
+    
     CombinedLogger::init(
         vec![
             TermLogger::new(LevelFilter::Debug, Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
-            WriteLogger::new(LevelFilter::Debug, Config::default(), File::create("sim.log").unwrap()),
+            WriteLogger::new(LevelFilter::Debug, Config::default(), File::create(&log_filename)?),
         ]
-    ).unwrap();
+    )?;
+    
+    // 输出日志文件路径信息
+    println!("Log file created: {}", log_filename);
+    
+    Ok(())
 }
 
 fn main() -> anyhow::Result<()> {
-    init_logger();
-
     let args = Args::parse();
+    
+    // 在解析参数后初始化日志，传入二进制文件路径
+    init_logger(&args.input)?;
 
     let config_path = args.config;
 
