@@ -9,7 +9,7 @@ use std::fs::File;
 use std::path::Path;
 use riscv_isa::{Decoder, Instruction, Target};
 use std::str::FromStr;
-use std::time::{SystemTime, UNIX_EPOCH};
+use chrono::Local;
 
 
 use std::num::ParseIntError;
@@ -57,14 +57,17 @@ fn init_logger(binary_path: &str) -> anyhow::Result<()> {
         .and_then(|s| s.to_str())
         .unwrap_or("unknown");
     
-    // 生成时间戳 (Unix时间戳格式)
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
+    // 生成容易读的时间戳格式: YYYYMMDD_HHMMSS
+    let timestamp = Local::now().format("%Y%m%d_%H%M%S");
     
-    // 构造日志文件名: sim_程序名_时间戳.log
-    let log_filename = format!("sim_{}_{}.log", binary_name, timestamp);
+    // 创建log目录（如果不存在）
+    let log_dir = Path::new("log");
+    if !log_dir.exists() {
+        std::fs::create_dir_all(log_dir)?;
+    }
+    
+    // 构造日志文件路径: log/sim_程序名_时间戳.log
+    let log_filename = format!("log/sim_{}_{}.log", binary_name, timestamp);
     
     CombinedLogger::init(
         vec![
