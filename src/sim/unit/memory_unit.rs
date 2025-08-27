@@ -308,18 +308,17 @@ impl LoadStoreUnit {
         }
 
         for i in 0..self.write_port_used.len() {
-            if let Some(ref port) = self.read_port_used[i] {
-                // 获取每周期可以从内存读取的字节数
-                let memory_bytes_per_cycle = port.bytes_per_cycle;
+            if let Some(ref port) = self.write_port_used[i] {
                 
 
-                    // 遍历 input_buffer 中的资源
+                // 遍历 input_buffer 中的资源
                 for resource in &mut self.write_port_buffer[i].input_buffer.resource {
-                    // 只处理 Memory 类型的资源
+
                     use crate::sim::register::RegisterType;
                     if matches!(resource.resource_type, ResourceType::Register(RegisterType::ScalarRegister(_))) || matches!(resource.resource_type, ResourceType::Register(RegisterType::FloatRegister(_))) {
                         // 如果输入是普通的scalar register，那么直接把input buffer 填满
                         // 因为在检查的时候已经检查过当前寄存器没有在被写
+                        debug!("[WRITE PORT {i}] Auto-increasing input buffer with 8-bytes register");
                         resource.current_size = resource.target_size;
                     }
                 }
