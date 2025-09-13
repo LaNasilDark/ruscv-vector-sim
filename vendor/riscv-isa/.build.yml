@@ -1,0 +1,27 @@
+# Copyright James Wainwright
+#
+# SPDX-License-Identifier: MPL-2.0
+
+image: archlinux
+packages:
+  - reuse
+  - rustup
+sources:
+  - https://codeberg.org/jwnrt/riscv-isa
+environment:
+  CARGO_TERM_COLOR: always
+  RUSTDOCFLAGS: -D warnings
+tasks:
+  - setup: |
+      rustup default stable
+  - lint: |
+      cd riscv-isa
+      cargo fmt --check
+      cargo clippy -- -D warnings
+      cargo update -w --locked
+      reuse lint
+  - test: |
+      cd riscv-isa
+      cargo doc
+      cargo test --no-run
+      cargo test -- --nocapture
