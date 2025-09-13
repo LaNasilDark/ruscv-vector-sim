@@ -1,5 +1,6 @@
 #makefile
-RISCV=~/plct-gem5/Xuantie-900-llvm-elf-newlib-x86_64-V2.0.1 # Change This to your riscv path
+# RISCV=~/plct-gem5/Xuantie-900-llvm-elf-newlib-x86_64-V2.0.1 # Change This to your riscv path
+RISCV=~/riscv-toolchain/xuantie/xuantie-llvm-elf
 
 start:
 	rm bin/*.*

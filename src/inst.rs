@@ -35,7 +35,7 @@ pub enum Inst {
     Mem(MemInst)
 }
 
-impl Inst {
+impl Inst { 
     pub fn new(riscv_isa : Instruction) -> Option<Inst> {
         // If you need more instructions, please extend this table
         match riscv_isa {

@@ -1,4 +1,3 @@
-
 # Example Analysis
 
 ## Matrix Multiply
@@ -17,6 +16,7 @@
    10236: d7 94 a5 b2  	vfmacc.vv	v9, v11, v10
    1023a: e3 60 fe fe  	bltu	t3, a5, 0x1021a <mat
 ```
+
 ### Running Command
 
 ```sh
@@ -75,8 +75,6 @@ result_maximum_size = 64 # in bytes
 maximum_forward_bytes = 32 # in bytes
 ```
 
-
-
 ### Running Result
 
 ```sh
@@ -90,6 +88,7 @@ maximum_forward_bytes = 32 # in bytes
 The simulation resulted in 26 cycles due to the combination of scalar instruction execution, vector loading operations, and vector computation with hardware limitations. Here's the detailed breakdown:
 
 ##### Key Configuration Parameters
+
 - **Integer ALU latency**: 1 cycle
 - **Memory load latency**: 2 cycles (due to buffer system)
 - **Vector register ports**: 2 read, 2 write per register
@@ -101,6 +100,7 @@ The simulation resulted in 26 cycles due to the combination of scalar instructio
 ##### Execution Phase Analysis
 
 **Phase 1: Scalar Instructions and Vector Loading (Cycles 0-9)**
+
 1. **SUB instruction** (cycle 0): Calculates remaining elements, completes in 1 cycle
 2. **VSETVLI instruction** Ignored
 3. **SLLI instruction** (cycle 1): Shifts for address calculation, completes in 1 cycle
@@ -122,7 +122,6 @@ In the config file, the latency of "float_multiplier" is 6. The last event needs
 In the cycle 25, the newly calculated result is written to the register. The simulation ends.
 
 Therefore, the simulator simulates a total of 26 cycles (here, counting starts from 0, and there are 26 cycles from cycle 0 to cycle 25).
-
 
 ## Read Ports Conflict
 
@@ -176,4 +175,3 @@ The last event of **vfadd.vv	v8, v8, v9** is generated in cycle 17, which needs 
 In the cycle 21, the last part of v8 is forwarding to the input buffer of the memory ports. And the memory ports write the data to the result buffer.
 
 In the cycle 22. The last part of result buffer of memory write port is consumed. And the simulation comes to the end.
-

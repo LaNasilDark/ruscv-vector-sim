@@ -13,3 +13,4 @@ serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
 riscv-isa = {path = "./vendor/riscv-isa" }
 lazy_static = "1.4.0"
+chrono = { version = "0.4", features = ["serde"] }
