@@ -1,3 +1,0 @@
-[submodule "vendor/riscv-isa"]
-	path = vendor/riscv-isa
-	url = https://github.com/sigongzi/riscv-isa-vector.git
