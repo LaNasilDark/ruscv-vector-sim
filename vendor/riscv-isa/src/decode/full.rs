@@ -528,8 +528,9 @@ pub fn decode(code: u32, target: &Target) -> Instruction {
             }
         },
         (Op::OPV, OPV::OPCFG, _) => {
-            match (code >> 31) & 0b1 {
-                0b0 => {
+            match (code >> 30) & 0b11 {
+                0b00 => {
+                    // VSETVLI
                     let vtypei = (code >> 20) & 0b111_1111_1111;
                     let lmul = LMUL::new(vtypei & 0b111);
                     let sew = 1 << ((vtypei >> 3) & 0b111).add(3);
@@ -537,7 +538,20 @@ pub fn decode(code: u32, target: &Target) -> Instruction {
                     let mask = VectorOption::new((vtypei >> 7) & 0b1);
                     VSETVLI { rd, rs1, sew, lmul, tail, mask}
                 },
-                0b1 => unimplemented!(),
+                0b11 => {
+                    // VSETIVLI
+                    let vtypei = (code >> 20) & 0b111_1111_1111;
+                    let uimm = rs1; // For VSETIVLI, rs1 field contains the immediate value
+                    let lmul = LMUL::new(vtypei & 0b111);
+                    let sew = 1 << ((vtypei >> 3) & 0b111).add(3);
+                    let tail = VectorOption::new((vtypei >> 6) & 0b1);
+                    let mask = VectorOption::new((vtypei >> 7) & 0b1);
+                    VSETIVLI { rd, uimm, sew, lmul, tail, mask}
+                },
+                0b10 => {
+                    // VSETVL - future implementation
+                    unimplemented!()
+                },
                 _ => unreachable!()
             }
         },
