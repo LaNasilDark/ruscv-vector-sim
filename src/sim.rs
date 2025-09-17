@@ -137,6 +137,7 @@ impl Simulator {
                 Inst::Func(func_inst) => {
                     let cycle = calc_func_cycle(&func_inst);
                     debug!("Function instruction cycles: {}", cycle);
+                    debug!("Function instruction to issue: {:?}", func_inst);
                     let fu = self.function_unit.get_mut(&func_inst.func_unit_key).unwrap();
                     match fu {
                         FunctionUnitType::Common(fu) => {
