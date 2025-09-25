@@ -174,7 +174,7 @@ impl Simulator {
                 },
                 Inst::Mem(mem_inst) => {
                     // 在try_issue函数中，处理Inst::Mem之前添加
-                    self.memory_unit.debug_port_status();
+                    // self.memory_unit.debug_port_status();
                     // 使用新的判断函数
                     if self.memory_unit.can_accept_new_instruction(mem_inst.dir) && self.register_file.borrow().can_issue_memory_instruction(&mem_inst) {
                         debug!("Memory unit can accept new instruction, issuing memory instruction: {:?}", mem_inst);
@@ -187,7 +187,7 @@ impl Simulator {
                         // 更新PC值，这行是新增的
                         self.fetch_unit.next_pc();
                         // 处理完Inst::Mem后再次添加
-                        self.memory_unit.debug_port_status();
+                        // self.memory_unit.debug_port_status();
                         // debug!("Memory instruction issued successfully, PC advanced");
                         debug!("Memory unit issued instruction: {:?} at cycle {}, PC advanced", mem_inst.raw, current_cycle);
                     } else {
@@ -198,6 +198,7 @@ impl Simulator {
         } else {
             debug!("No more instructions to issue");
         }
+        self.memory_unit.debug_port_status();
         Ok(())
     }
 

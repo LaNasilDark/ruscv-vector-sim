@@ -178,9 +178,9 @@ impl LoadStoreUnit {
                 }
                 // 判断读端口任务是否完成的条件
                 if port.current_pos == port.total_bytes && self.read_port_buffer[i].is_result_completed() {
-                    // DEBUG: 读端口完成条件满足 - 当前位置等于总字节数且结果缓冲区已完成
-                    debug!("Read port {} task completed: current_pos={}/{} bytes, result buffer completed={}", 
-                           i, port.current_pos, port.total_bytes, self.read_port_buffer[i].is_result_completed());
+                    // DEBUG: 读端口完成条件满足 - 当前位置等于总字节数且结果缓冲区已完成，输出完成的指令信息
+                    debug!("Read port {} task completed: current_pos={}/{} bytes, result buffer completed={}, instruction: {:?}", 
+                           i, port.current_pos, port.total_bytes, self.read_port_buffer[i].is_result_completed(), port.raw_inst);
                     finish_read_port.push(i);
                 } else {
                     // DEBUG: 读端口任务未完成 - 当前进度和完成条件
@@ -191,8 +191,12 @@ impl LoadStoreUnit {
         }
 
         finish_read_port.into_iter().for_each(|i| {
-            // DEBUG: 清空读端口 - 释放资源
-            debug!("Clearing read port {}: releasing resources", i);
+            // DEBUG: 清空读端口 - 释放资源，输出被清理的指令信息
+            if let Some(ref port) = self.read_port_used[i] {
+                debug!("Clearing read port {}: releasing resources, completed instruction: {:?}", i, port.raw_inst);
+            } else {
+                debug!("Clearing read port {}: releasing resources", i);
+            }
             self.read_port_used[i] = None;
             self.read_port_buffer[i].clear();
         });
@@ -207,9 +211,9 @@ impl LoadStoreUnit {
                 }
                 // 判断写端口任务是否完成的条件
                 if port.current_pos == port.total_bytes && self.write_port_buffer[i].is_result_completed() {
-                    // DEBUG: 写端口完成条件满足 - 当前位置等于总字节数且结果缓冲区已完成
-                    debug!("Write port {} task completed: current_pos={}/{} bytes, result buffer completed={}", 
-                           i, port.current_pos, port.total_bytes, self.write_port_buffer[i].is_result_completed());
+                    // DEBUG: 写端口完成条件满足 - 当前位置等于总字节数且结果缓冲区已完成，输出完成的指令信息
+                    debug!("Write port {} task completed: current_pos={}/{} bytes, result buffer completed={}, instruction: {:?}", 
+                           i, port.current_pos, port.total_bytes, self.write_port_buffer[i].is_result_completed(), port.raw_inst);
                     finish_write_port.push(i);
                 } else {
                     // DEBUG: 写端口任务未完成 - 当前进度和完成条件
@@ -219,8 +223,12 @@ impl LoadStoreUnit {
             }
         }
         finish_write_port.into_iter().for_each(|i| {
-            // DEBUG: 清空写端口 - 释放资源
-            debug!("Clearing write port {}: releasing resources", i);
+            // DEBUG: 清空写端口 - 释放资源，输出被清理的指令信息
+            if let Some(ref port) = self.write_port_used[i] {
+                debug!("Clearing write port {}: releasing resources, completed instruction: {:?}", i, port.raw_inst);
+            } else {
+                debug!("Clearing write port {}: releasing resources", i);
+            }
             self.write_port_used[i] = None;
             // 清除当前指令信息
             self.write_port_buffer[i].clear();

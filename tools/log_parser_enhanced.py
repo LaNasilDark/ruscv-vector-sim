@@ -732,18 +732,48 @@ class LogParser:
     
     def _parse_memory_task_completed(self, line: str):
         """Parse memory unit task completion"""
-        # Match memory task completion events like "Read port 0 task completed"
-        match = re.search(r'(Read|Write) port (\d+) task completed:', line)
+        # Match new memory task completion format with instruction information
+        # Format: "Read port X task completed: current_pos=Y/Z bytes, result buffer completed=true, instruction: <inst_info>"
+        match = re.search(r'(Read|Write) port (\d+) task completed:.*?instruction:\s*(.+)', line)
         if match:
             port_type = match.group(1)
             port_id = int(match.group(2))
+            instruction_info = match.group(3).strip()
             
             if self.verbose:
                 print(f"    Found memory task completion: {port_type} port {port_id} in cycle {self.current_cycle}")
+                print(f"    Instruction info: {instruction_info}")
             
-            # Find memory instruction based on the specific port
-            # We need to track which instruction is associated with which port
-            # For now, match by order of issue for the same type of operation
+            # Try to extract instruction details from the instruction info string
+            # Example: "MemInst { dir: Read, reg: VectorRegister(1), raw: vle32.v v1, (a0), ... }"
+            inst_name = None
+            target_register = None
+            
+            # Extract instruction name from raw field if available
+            raw_match = re.search(r'raw:\s*([^,}]+)', instruction_info)
+            if raw_match:
+                raw_inst = raw_match.group(1).strip()
+                # Extract instruction name (first word)
+                inst_name_match = re.match(r'(\S+)', raw_inst)
+                if inst_name_match:
+                    inst_name = inst_name_match.group(1)
+            
+            # Extract register information
+            reg_match = re.search(r'reg:\s*(\w+)\((\d+)\)', instruction_info)
+            if reg_match:
+                reg_type = reg_match.group(1)
+                reg_id = int(reg_match.group(2))
+                if reg_type == "VectorRegister":
+                    target_register = f"v{reg_id}"
+                elif reg_type == "ScalarRegister":
+                    target_register = f"x{reg_id}"
+                elif reg_type == "FloatRegister":
+                    target_register = f"f{reg_id}"
+            
+            if self.verbose and inst_name:
+                print(f"    Parsed instruction: {inst_name}, register: {target_register}")
+            
+            # Find matching memory instruction based on the specific port and instruction info
             if self.instruction_events:
                 memory_instructions = []
                 # Collect all issued memory instructions that haven't been completed yet
@@ -762,9 +792,13 @@ class LogParser:
                         )
                         
                         if not already_completed:
-                            memory_instructions.append(event)
+                            # Try to match by instruction name if available
+                            if inst_name and event.instruction.name == inst_name:
+                                memory_instructions.insert(0, event)  # Prioritize exact matches
+                            elif not inst_name:
+                                memory_instructions.append(event)
                 
-                # Sort by issue cycle to process in order
+                # Sort by issue cycle to process in order (exact matches first)
                 memory_instructions.sort(key=lambda x: x.cycle)
                 
                 if self.verbose:
@@ -772,11 +806,9 @@ class LogParser:
                     for i, inst in enumerate(memory_instructions):
                         print(f"      [{i}] {inst.instruction.name} (PC={inst.pc}, cycle={inst.cycle})")
                 
-                # For memory instructions, we need to match the completion to the appropriate instruction
-                # Since ports can complete in any order, we use a simpler approach:
-                # Complete the oldest uncompleted instruction
+                # Select the best matching instruction
                 if len(memory_instructions) > 0:
-                    target_event = memory_instructions[0]  # Always take the oldest uncompleted
+                    target_event = memory_instructions[0]  # Take the best match (or oldest)
                     
                     completion_event = InstructionEvent(
                         cycle=self.current_cycle,
@@ -790,7 +822,54 @@ class LogParser:
                         print(f"    Added completion event for {target_event.instruction.name} (PC={target_event.pc}) in cycle {self.current_cycle}")
                 else:
                     if self.verbose:
-                        print(f"    ERROR: Port {port_id} completion but no uncompleted instructions available")
+                        print(f"    ERROR: Port {port_id} completion but no matching uncompleted instructions available")
+        else:
+            # Fallback to old format for compatibility
+            old_match = re.search(r'(Read|Write) port (\d+) task completed:', line)
+            if old_match:
+                port_type = old_match.group(1)
+                port_id = int(old_match.group(2))
+                
+                if self.verbose:
+                    print(f"    Found memory task completion (old format): {port_type} port {port_id} in cycle {self.current_cycle}")
+                
+                # Use original logic for old format
+                if self.instruction_events:
+                    memory_instructions = []
+                    for event in self.instruction_events:
+                        if (event.event_type == 'issued' and 
+                            event.unit == 'MemoryUnit' and 
+                            event.cycle < self.current_cycle):
+                            
+                            already_completed = any(
+                                e.event_type == 'completed' and 
+                                e.instruction.name == event.instruction.name and
+                                e.pc == event.pc and
+                                e.unit == event.unit
+                                for e in self.instruction_events
+                            )
+                            
+                            if not already_completed:
+                                memory_instructions.append(event)
+                    
+                    memory_instructions.sort(key=lambda x: x.cycle)
+                    
+                    if len(memory_instructions) > 0:
+                        target_event = memory_instructions[0]
+                        
+                        completion_event = InstructionEvent(
+                            cycle=self.current_cycle,
+                            pc=target_event.pc,
+                            instruction=target_event.instruction,
+                            event_type='completed',
+                            unit=target_event.unit
+                        )
+                        self.instruction_events.append(completion_event)
+                        if self.verbose:
+                            print(f"    Added completion event for {target_event.instruction.name} (PC={target_event.pc}) in cycle {self.current_cycle}")
+                    else:
+                        if self.verbose:
+                            print(f"    ERROR: Port {port_id} completion but no uncompleted instructions available")
     
     def analyze_instruction_lifecycle(self):
         """Analyze instruction lifecycle"""
