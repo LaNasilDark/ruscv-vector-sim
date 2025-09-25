@@ -92,8 +92,7 @@ fn main() -> anyhow::Result<()> {
 
     // 初始化全局配置
     SimulatorConfig::init_global_config(config_path.as_str())?;
-
-    if let Some(config) = SimulatorConfig::get_global_config() {
+    if let Some(config) = SimulatorConfig::get_global_config() { // config处理
         debug!("Simulator config: {:?}", config);
         
         // 输出向量配置信息
@@ -124,7 +123,6 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-
     let target = Target::from_str("RV64IMFDAVZifencei_Zicsr_Zcd_Zca").unwrap();
     
     debug!("the start_addr is {:x}, end_addr is {:x}", args.start_addr, args.end_addr);
@@ -133,6 +131,7 @@ fn main() -> anyhow::Result<()> {
     let mut decoder = Decoder::from_le_bytes(target, &instructions[..]);
     let v = decoder.collect::<Vec<_>>();
     debug!("the instructions are {:?}", v);
+    debug!("the instructions length is {}", v.len());
 
     // 初始化 Simulator
     let mut sim = Simulator::new();

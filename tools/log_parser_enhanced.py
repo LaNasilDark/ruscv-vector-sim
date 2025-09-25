@@ -491,7 +491,7 @@ class LogParser:
         if not self.skip_images:
             self.setup_output_directory(filepath)
         
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
             lines = f.readlines()
         
         # First check total cycle count
@@ -532,14 +532,11 @@ class LogParser:
                 self._parse_instruction_list(line)
                 continue
             
-            # Parse instruction issue
-            if "Trying to issue instruction:" in line:
-                self._parse_instruction_issue(line)
-                continue
-            
-            # Parse instruction completion - corrected regex
-            if "issued successfully" in line:
-                self._parse_instruction_issued()
+            # Parse detailed instruction issue (new format): "Function unit IntegerAlu issued instruction: SUB { rd: 30, rs1: 15, rs2: 28 } at cycle 0, PC advanced"
+            # Also handles: "Memory unit issued instruction: VLE { vrd: 10, rs1: 8, width: 64 } at cycle 4, PC advanced"
+            if ("Function unit" in line and "issued instruction:" in line and "at cycle" in line) or \
+               ("Memory unit issued instruction:" in line and "at cycle" in line):
+                self._parse_detailed_instruction_issue(line)
                 continue
             
             # Parse PC advancement
@@ -611,63 +608,49 @@ class LogParser:
             if self.verbose:
                 print(f"  Parsed {len(instructions)} instructions")
     
-    def _parse_instruction_issue(self, line: str):
-        """Parse instruction issue"""
-        # Parse functional unit instruction issue - corrected regex to handle resource array
-        func_match = re.search(r'Trying to issue instruction: Func\(FuncInst \{ raw: ([^}]+\}), destination: [^,]+, resource: \[[^\]]+\], func_unit_key: (\w+)', line)
-        if func_match:
-            inst_str = func_match.group(1)
-            unit = func_match.group(2)
+    def _parse_detailed_instruction_issue(self, line: str):
+        """Parse detailed instruction issue format: 'ruscv_vector_sim::sim: Function unit IntegerAlu issued instruction: SUB { rd: 30, rs1: 15, rs2: 28 } at cycle 0, PC advanced'"""
+        # Parse function unit instruction issue format
+        func_unit_match = re.search(r'Function unit (\w+) issued instruction: ([^}]+\}) at cycle (\d+)(?:, PC advanced)?', line)
+        if func_unit_match:
+            unit = func_unit_match.group(1)
+            inst_str = func_unit_match.group(2)
+            cycle = int(func_unit_match.group(3))
             inst = self.parse_instruction(inst_str)
             if inst:
                 event = InstructionEvent(
-                    cycle=self.current_cycle,
+                    cycle=cycle,
                     pc=self.current_pc,
                     instruction=inst,
-                    event_type='trying_to_issue',
+                    event_type='issued',
                     unit=unit
                 )
                 self.instruction_events.append(event)
                 self.function_units.add(unit)
                 if self.verbose:
-                    print(f"    Parsed functional unit instruction issue: {inst.name} -> {unit}")
+                    print(f"    Parsed functional unit instruction issue: {inst.name} -> {unit} at cycle {cycle}")
             return
-        
-        # Parse memory instruction issue
-        mem_match = re.search(r'Trying to issue instruction: Mem\(MemInst \{ raw: ([^}]+\}), dir: (\w+)', line)
-        if mem_match:
-            inst_str = mem_match.group(1)
-            direction = mem_match.group(2)
+            
+        # Parse memory unit instruction issue format: "Memory unit issued instruction: VLE { vrd: 10, rs1: 8, width: 64 } at cycle 4, PC advanced"
+        mem_unit_match = re.search(r'Memory unit issued instruction: ([^}]+\}) at cycle (\d+)(?:, PC advanced)?', line)
+        if mem_unit_match:
+            inst_str = mem_unit_match.group(1)
+            cycle = int(mem_unit_match.group(2))
             unit = "MemoryUnit"
             inst = self.parse_instruction(inst_str)
             if inst:
                 event = InstructionEvent(
-                    cycle=self.current_cycle,
+                    cycle=cycle,
                     pc=self.current_pc,
                     instruction=inst,
-                    event_type='trying_to_issue',
+                    event_type='issued',
                     unit=unit
                 )
                 self.instruction_events.append(event)
                 self.function_units.add(unit)
                 if self.verbose:
-                    print(f"    Parsed memory instruction issue: {inst.name} -> {unit} ({direction})")
+                    print(f"    Parsed memory unit instruction issue: {inst.name} -> {unit} at cycle {cycle}")
             return
-    
-    def _parse_instruction_issued(self):
-        """Parse instruction issued successfully"""
-        if self.instruction_events:
-            last_event = self.instruction_events[-1]
-            if last_event.event_type == 'trying_to_issue':
-                # Create new issued event
-                event = InstructionEvent(
-                    cycle=self.current_cycle,
-                    pc=last_event.pc,
-                    instruction=last_event.instruction,
-                    event_type='issued',
-                    unit=last_event.unit
-                )
-                self.instruction_events.append(event)
     
     def _parse_unit_status(self, line: str):
         """Parse functional unit status"""

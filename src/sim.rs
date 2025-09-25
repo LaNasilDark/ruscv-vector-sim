@@ -32,9 +32,10 @@ impl Simulator {
         
         let mut function_units = HashMap::new();
         
-        let bytes_per_event = 8; 
+        let bytes_per_event = 8; // not used for now
+
         let vector_bytes_per_event = SimulatorConfig::get_global_config().unwrap().get_data_length();
-        
+        // 为模拟器注入功能单元
         // Vector类型使用VectorFunctionUnit
         function_units.insert(FunctionUnitKeyType::VectorAlu, FunctionUnitType::Vector(VectorFunctionUnit::new(vector_bytes_per_event, FunctionUnitKeyType::VectorAlu)));
         function_units.insert(FunctionUnitKeyType::VectorMul, FunctionUnitType::Vector(VectorFunctionUnit::new(vector_bytes_per_event, FunctionUnitKeyType::VectorMul)));
@@ -85,8 +86,8 @@ impl Simulator {
         let r = self.register_file.clone();
         let mut register_file = r.borrow_mut();
         register_file.iter_mut_tasks()
-        .for_each(|r| {
-            if r.task_queue().len() == 0 {
+        .for_each(|r| { 
+            if r.task_queue().len() == 0 { //如果当前寄存器没有待处理任务，直接跳过
                 return;
             }
             debug!("Processing register task queue, length: {}", r.task_queue().len());
@@ -130,14 +131,14 @@ impl Simulator {
         Ok(())
     }
 
-    fn try_issue(&mut self) -> anyhow::Result<()> {
+    fn try_issue(&mut self, current_cycle: u32) -> anyhow::Result<()> {
         if let Some(inst) = self.fetch_unit.fetch() {
             debug!("Trying to issue instruction: {:?}", inst);
             match inst {
                 Inst::Func(func_inst) => {
-                    let cycle = calc_func_cycle(&func_inst);
+                    let cycle = calc_func_cycle(&func_inst); //只用于log输出
                     debug!("Function instruction cycles: {}", cycle);
-                    debug!("Function instruction to issue: {:?}", func_inst);
+                    debug!("Function instruction to issue: {:?}", func_inst); //todo: upadate log info for parser
                     let fu = self.function_unit.get_mut(&func_inst.func_unit_key).unwrap();
                     match fu {
                         FunctionUnitType::Common(fu) => {
@@ -151,7 +152,7 @@ impl Simulator {
                                 fu.issue(func_inst.clone(), self.fetch_unit.get_pc())?;
                                 self.fetch_unit.next_pc();
                                 self.register_file.borrow_mut().add_common_task(&func_inst);
-                                debug!("Instruction issued successfully, PC advanced");
+                                debug!("Function unit {:?} issued instruction: {:?} at cycle {}, PC advanced", func_inst.func_unit_key, func_inst.raw, current_cycle);
                             } else {
                                 if !can_issue_register {
                                     debug!("Function unit {:?} cannot accept new instruction: register file not ready", func_inst.func_unit_key);
@@ -164,7 +165,7 @@ impl Simulator {
                                 fu.issue(func_inst.clone(), self.fetch_unit.get_pc())?;
                                 self.fetch_unit.next_pc();
                                 self.register_file.borrow_mut().add_vector_task(&func_inst);
-                                debug!("Instruction issued successfully, PC advanced");
+                                debug!("Function unit {:?} issued instruction: {:?} at cycle {}, PC advanced", func_inst.func_unit_key, func_inst.raw, current_cycle);
                             } else {
                                 debug!("Function unit {:?} cannot accept new instruction yet, waiting", func_inst.func_unit_key);
                             }
@@ -187,7 +188,8 @@ impl Simulator {
                         self.fetch_unit.next_pc();
                         // 处理完Inst::Mem后再次添加
                         self.memory_unit.debug_port_status();
-                        debug!("Memory instruction issued successfully, PC advanced");
+                        // debug!("Memory instruction issued successfully, PC advanced");
+                        debug!("Memory unit issued instruction: {:?} at cycle {}, PC advanced", mem_inst.raw, current_cycle);
                     } else {
                         debug!("Memory unit cannot accept new instruction yet, memory instruction waiting");
                     }
@@ -258,7 +260,7 @@ impl Simulator {
             
             // Step 3: Fetch new instructions and check if they can be issued
             info!("Step 3: Fetching new instructions and checking if they can be issued");
-            self.try_issue()?;
+            self.try_issue(total_cycle)?;
             
             total_cycle += 1;
             info!("========== Simulation for cycle {} completed ==========", total_cycle - 1);
