@@ -233,7 +233,7 @@ impl Simulator {
     }
     pub fn main_sim_loop(&mut self) -> anyhow::Result<()> { 
         let mut total_cycle : u32 = 0;
-        let max_cycles : u32 = 100; // 设置最大周期数为20
+        let max_cycles : u32 = 10000; // 设置最大周期数为20
         debug!("Starting main simulation loop");
         
         while !self.is_simulation_end() && total_cycle < max_cycles { // 添加周期限制条件

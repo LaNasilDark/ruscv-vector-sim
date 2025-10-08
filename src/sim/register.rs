@@ -517,19 +517,67 @@ impl RegisterFile {
     pub(crate) fn can_issue_memory_instruction(&self, mem_inst: &MemInst) -> bool {
         // 检查地址依赖的寄存器是否没有未完成的写
         if self.has_unfinished_writes(&mem_inst.mem_addr.dependency) {
+            debug!("Cannot issue memory instruction: address register {:?} has unfinished writes", 
+                   mem_inst.mem_addr.dependency);
             return false;
         }
 
-        // 如果是读操作 （也就是说会写寄存器）
+        // 如果是读操作（Load指令，会写目标寄存器）
         if mem_inst.dir == Direction::Read {
             match mem_inst.reg {
                 RegisterType::ScalarRegister(_) | RegisterType::FloatRegister(_) => {
                     if self.has_unfinished_writes(&mem_inst.reg) {
+                        debug!("Cannot issue VLE: destination register {:?} has unfinished writes", 
+                               mem_inst.reg);
                         return false;
                     }
                 },
-                RegisterType::VectorRegister(_) => {
-                    // TODO: 可以检查也可以不检查，在这里限制读写任务的个数
+                RegisterType::VectorRegister(id) => {
+                    // 检查目标向量寄存器的写任务数量是否超限
+                    let config = crate::config::SimulatorConfig::get_global_config()
+                        .expect("Global config not initialized");
+                    let write_ports_limit = config.get_vector_register_write_ports_limit();
+                    let current_write_count = self.vector_registers[id as usize].get_write_count();
+                    
+                    if current_write_count + 1 > write_ports_limit {
+                        debug!("Cannot issue VLE: vector register {} write count would exceed limit ({} + 1 > {})", 
+                               id, current_write_count, write_ports_limit);
+                        return false;
+                    }
+                }
+            }
+        } 
+        // 如果是写操作（Store指令，会读源寄存器）
+        else {
+            match mem_inst.reg {
+                RegisterType::ScalarRegister(_) | RegisterType::FloatRegister(_) => {
+                    // 检查源寄存器是否有未完成的写操作
+                    if self.has_unfinished_writes(&mem_inst.reg) {
+                        debug!("Cannot issue Store: source register {:?} has unfinished writes", 
+                               mem_inst.reg);
+                        return false;
+                    }
+                },
+                RegisterType::VectorRegister(id) => {
+                    // 🔧 关键修复：检查向量寄存器是否有未完成的写任务
+                    let current_write_count = self.vector_registers[id as usize].get_write_count();
+                    if current_write_count > 0 {
+                        debug!("Cannot issue VSE: vector register {} has {} unfinished write tasks", 
+                               id, current_write_count);
+                        return false;
+                    }
+                    
+                    // 同时检查读端口限制
+                    let config = crate::config::SimulatorConfig::get_global_config()
+                        .expect("Global config not initialized");
+                    let read_ports_limit = config.get_vector_register_read_ports_limit();
+                    let current_read_count = self.vector_registers[id as usize].get_read_count();
+                    
+                    if current_read_count + 1 > read_ports_limit {
+                        debug!("Cannot issue VSE: vector register {} read count would exceed limit ({} + 1 > {})", 
+                               id, current_read_count, read_ports_limit);
+                        return false;
+                    }
                 }
             }
         }
