@@ -237,7 +237,7 @@ impl VectorFunctionUnit {
             _ => false
         }
     }
-    pub fn handle_event(&mut self) -> anyhow::Result<()>{
+    pub fn handle_event(&mut self, current_cycle: u32) -> anyhow::Result<()>{
         debug!("[{:?}] Starting handle_event: event_queue_size={}, occupied={}", 
                self.unit_type, self.event_queue.len(), self.occupied);
         
@@ -268,10 +268,22 @@ impl VectorFunctionUnit {
         if let Some(event_gen) = self.current_event.as_mut() {
             debug!("[{:?}] Processing current event generator", self.unit_type);
             if event_gen.is_complete() {
-                debug!("[{:?}] EventGenerator is end", self.unit_type);
+                // 输出指令完成信息,包含指令详情和周期数
+                if let Some(ref inst) = self.current_inst {
+                    debug!("[{:?}] EventGenerator is end - Instruction: {:?}, PC: {}, Cycle: {}", 
+                           self.unit_type, inst.raw, self.handle_pc.unwrap_or(0), current_cycle);
+                } else {
+                    debug!("[{:?}] EventGenerator is end", self.unit_type);
+                }
                 if let Some(ref destination) = self.buffer_pair.result_buffer.destination {
                     if destination.is_completed() {
-                        debug!("[{:?}] ResultBuffer is fully consumed, freeing unit", self.unit_type);
+                        // 输出单元释放信息,包含指令详情和周期数
+                        if let Some(ref inst) = self.current_inst {
+                            debug!("[{:?}] ResultBuffer is fully consumed, freeing unit - Instruction: {:?}, PC: {}, Cycle: {}", 
+                                   self.unit_type, inst.raw, self.handle_pc.unwrap_or(0), current_cycle);
+                        } else {
+                            debug!("[{:?}] ResultBuffer is fully consumed, freeing unit", self.unit_type);
+                        }
                         self.free_unit();
                         
                     } else {

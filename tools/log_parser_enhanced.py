@@ -550,7 +550,12 @@ class LogParser:
                 self._parse_unit_status(line)
                 continue
             
-            # Parse instruction completion events
+            # Parse ResultBuffer fully consumed (vector instruction completion)
+            if "ResultBuffer is fully consumed, freeing unit" in line:
+                self._parse_result_buffer_completed(line)
+                continue
+            
+            # Parse instruction completion events (fallback for scalar or old logs)
             if "Event completed:" in line:
                 self._parse_event_completed(line)
                 continue
@@ -611,16 +616,22 @@ class LogParser:
     def _parse_detailed_instruction_issue(self, line: str):
         """Parse detailed instruction issue format: 'ruscv_vector_sim::sim: Function unit IntegerAlu issued instruction: SUB { rd: 30, rs1: 15, rs2: 28 } at cycle 0, PC advanced'"""
         # Parse function unit instruction issue format
-        func_unit_match = re.search(r'Function unit (\w+) issued instruction: ([^}]+\}) at cycle (\d+)(?:, PC advanced)?', line)
+        func_unit_match = re.search(r'Function unit (\w+) issued instruction: ([^}]+\}) at cycle (\d+)(, PC advanced)?', line)
         if func_unit_match:
             unit = func_unit_match.group(1)
             inst_str = func_unit_match.group(2)
             cycle = int(func_unit_match.group(3))
+            pc_advanced = func_unit_match.group(4) is not None
+            
+            # If PC advanced, the current_pc is already updated to next instruction
+            # So the actual PC of this instruction is current_pc - 1
+            actual_pc = (self.current_pc - 1) if pc_advanced else self.current_pc
+            
             inst = self.parse_instruction(inst_str)
             if inst:
                 event = InstructionEvent(
                     cycle=cycle,
-                    pc=self.current_pc,
+                    pc=actual_pc,
                     instruction=inst,
                     event_type='issued',
                     unit=unit
@@ -628,20 +639,26 @@ class LogParser:
                 self.instruction_events.append(event)
                 self.function_units.add(unit)
                 if self.verbose:
-                    print(f"    Parsed functional unit instruction issue: {inst.name} -> {unit} at cycle {cycle}")
+                    print(f"    Parsed functional unit instruction issue: {inst.name} -> {unit} at cycle {cycle}, PC={actual_pc}")
             return
             
         # Parse memory unit instruction issue format: "Memory unit issued instruction: VLE { vrd: 10, rs1: 8, width: 64 } at cycle 4, PC advanced"
-        mem_unit_match = re.search(r'Memory unit issued instruction: ([^}]+\}) at cycle (\d+)(?:, PC advanced)?', line)
+        mem_unit_match = re.search(r'Memory unit issued instruction: ([^}]+\}) at cycle (\d+)(, PC advanced)?', line)
         if mem_unit_match:
             inst_str = mem_unit_match.group(1)
             cycle = int(mem_unit_match.group(2))
+            pc_advanced = mem_unit_match.group(3) is not None
             unit = "MemoryUnit"
+            
+            # If PC advanced, the current_pc is already updated to next instruction
+            # So the actual PC of this instruction is current_pc - 1
+            actual_pc = (self.current_pc - 1) if pc_advanced else self.current_pc
+            
             inst = self.parse_instruction(inst_str)
             if inst:
                 event = InstructionEvent(
                     cycle=cycle,
-                    pc=self.current_pc,
+                    pc=actual_pc,
                     instruction=inst,
                     event_type='issued',
                     unit=unit
@@ -649,7 +666,7 @@ class LogParser:
                 self.instruction_events.append(event)
                 self.function_units.add(unit)
                 if self.verbose:
-                    print(f"    Parsed memory unit instruction issue: {inst.name} -> {unit} at cycle {cycle}")
+                    print(f"    Parsed memory unit instruction issue: {inst.name} -> {unit} at cycle {cycle}, PC={actual_pc}")
             return
     
     def _parse_unit_status(self, line: str):
@@ -669,8 +686,65 @@ class LogParser:
             self.unit_statuses.append(status)
             self.function_units.add(unit_name)
     
+    def _parse_result_buffer_completed(self, line: str):
+        """Parse ResultBuffer fully consumed event (vector instruction completion)"""
+        # Example: [VectorAlu] ResultBuffer is fully consumed, freeing unit - Instruction: VFADD_VV { vrd: 8, vrs1: 9, vrs2: 8 }, PC: 9, Cycle: 25
+        match = re.search(r'\[(\w+)\] ResultBuffer is fully consumed, freeing unit - Instruction: (\w+)', line)
+        if match:
+            unit_name = match.group(1)
+            inst_name = match.group(2)
+            
+            # Extract PC and Cycle if available
+            pc_match = re.search(r'PC: (\d+)', line)
+            cycle_match = re.search(r'Cycle: (\d+)', line)
+            
+            completion_cycle = int(cycle_match.group(1)) if cycle_match else self.current_cycle
+            pc = int(pc_match.group(1)) if pc_match else None
+            
+            if self.verbose:
+                print(f"    Found ResultBuffer completion: {inst_name} at {unit_name} in cycle {completion_cycle}")
+            
+            # Record instruction completion event - match by instruction name and unit
+            # ResultBuffer completion is MORE ACCURATE than Event completed for vector instructions
+            # so we need to update/replace any existing completion event
+            if self.instruction_events:
+                for event in reversed(self.instruction_events):
+                    if (event.event_type == 'issued' and 
+                        event.unit == unit_name and 
+                        event.instruction.name == inst_name and
+                        event.cycle < completion_cycle):
+                        
+                        # Check if completion event already exists - if so, remove it
+                        # because ResultBuffer completion is more accurate
+                        existing_completion = None
+                        for idx, e in enumerate(self.instruction_events):
+                            if (e.event_type == 'completed' and 
+                                e.instruction.name == event.instruction.name and
+                                e.pc == event.pc and
+                                e.unit == event.unit):
+                                existing_completion = idx
+                                break
+                        
+                        if existing_completion is not None:
+                            if self.verbose:
+                                print(f"    Replacing existing completion event (cycle {self.instruction_events[existing_completion].cycle}) with ResultBuffer completion (cycle {completion_cycle})")
+                            del self.instruction_events[existing_completion]
+                        
+                        # Add the new completion event with accurate cycle
+                        completion_event = InstructionEvent(
+                            cycle=completion_cycle,
+                            pc=event.pc if pc is None else pc,
+                            instruction=event.instruction,
+                            event_type='completed',
+                            unit=event.unit
+                        )
+                        self.instruction_events.append(completion_event)
+                        if self.verbose:
+                            print(f"    Added ResultBuffer completion event for {event.instruction.name} in cycle {completion_cycle}")
+                        break
+    
     def _parse_event_completed(self, line: str):
-        """Parse event completion"""
+        """Parse event completion (fallback for scalar instructions or old logs)"""
         # Fixed regex to properly match ScalarRegister and VectorRegister formats
         match = re.search(r'\[(\w+)\] Event completed: target_register=(?:Scalar|Vector)Register\((\d+)\)', line)
         if match:

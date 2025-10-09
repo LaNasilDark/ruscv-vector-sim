@@ -102,7 +102,7 @@ impl Simulator {
         debug!("Register file processing completed");
     }
 
-    fn handle_unit_event_queue(&mut self) -> anyhow::Result<()>{
+    fn handle_unit_event_queue(&mut self, current_cycle: u32) -> anyhow::Result<()>{
         debug!("Start processing function unit event queue");
         for (key, unit) in self.function_unit.iter_mut() {
             debug!("Processing function unit {:?} event queue", key);
@@ -120,7 +120,7 @@ impl Simulator {
                     }
                 },
                 FunctionUnitType::Vector(fu) => {
-                    fu.handle_event()?;
+                    fu.handle_event(current_cycle)?;
                 }
             }
         }
@@ -257,7 +257,7 @@ impl Simulator {
             
             // Step 2: Update the event queues of all Units
             info!("Step 2: Updating event queues of all units");
-            self.handle_unit_event_queue()?;
+            self.handle_unit_event_queue(total_cycle)?;
             
             // Step 3: Fetch new instructions and check if they can be issued
             info!("Step 3: Fetching new instructions and checking if they can be issued");
