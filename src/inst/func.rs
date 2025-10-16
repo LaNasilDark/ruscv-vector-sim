@@ -41,6 +41,11 @@ impl FuncInst {
                 vec![RegisterType::VectorRegister(vrs1), RegisterType::VectorRegister(vrs2)],
                 FunctionUnitKeyType::VectorAlu)
             },
+            Instruction::VMUL_VX { vrd, rs1, vrs2 } => {
+                (RegisterType::VectorRegister(vrd),
+                vec![RegisterType::ScalarRegister(rs1), RegisterType::VectorRegister(vrs2)],
+                FunctionUnitKeyType::VectorMul)
+            },
             Instruction::VFADD_VV { vrd, vrs1, vrs2 } // 2nd step
              => {
                 (RegisterType::VectorRegister(vrd),

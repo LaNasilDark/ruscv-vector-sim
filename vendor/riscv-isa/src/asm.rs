@@ -424,6 +424,7 @@ impl Display for Instruction {
             Instruction::VLE { vrd, rs1, width} => write!(f, "vle{width}.v v{vrd}, (x{rs1})"),
             Instruction::VSE { vrd, rs1, width} => write!(f, "vse{width}.v v{vrd}, (x{rs1})"),
             Instruction::VADD_VV { vrd, vrs1, vrs2 } => write!(f, "vadd.vv v{vrd}, v{vrs1}, v{vrs2}"),
+            Instruction::VMUL_VX { vrd, rs1, vrs2 } => write!(f, "vmul.vx v{vrd}, v{vrs2}, x{rs1}"),
             Instruction::VFADD_VV { vrd, vrs1, vrs2 } => write!(f, "vfadd.vv v{vrd}, v{vrs1}, v{vrs2}"),
             Instruction::VFSUB_VV { vrd, vrs1, vrs2 } => write!(f, "vfsub.vv v{vrd}, v{vrs1}, v{vrs2}"),
             Instruction::VFMUL_VV { vrd, vrs1, vrs2 } => write!(f, "vfmul.vv v{vrd}, v{vrs1}, v{vrs2}"),
