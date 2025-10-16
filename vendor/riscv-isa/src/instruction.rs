@@ -334,6 +334,7 @@ pub enum Instruction {
     VLE { vrd: u32, rs1: u32, width: u32},
     VSE { vrd: u32, rs1: u32, width: u32},
     
+    VADD_VV {vrd : u32, vrs1: u32, vrs2: u32},
     VFADD_VV {vrd : u32, vrs1: u32, vrs2: u32},
     VFSUB_VV {vrd : u32, vrs1: u32, vrs2: u32},
     VFMUL_VV {vrd : u32, vrs1: u32, vrs2: u32},

@@ -423,6 +423,7 @@ impl Display for Instruction {
             Instruction::BSETI { rd, rs1, shamt } => write!(f, "bseti x{rd}, x{rs1}, {shamt}"),
             Instruction::VLE { vrd, rs1, width} => write!(f, "vle{width}.v v{vrd}, (x{rs1})"),
             Instruction::VSE { vrd, rs1, width} => write!(f, "vse{width}.v v{vrd}, (x{rs1})"),
+            Instruction::VADD_VV { vrd, vrs1, vrs2 } => write!(f, "vadd.vv v{vrd}, v{vrs1}, v{vrs2}"),
             Instruction::VFADD_VV { vrd, vrs1, vrs2 } => write!(f, "vfadd.vv v{vrd}, v{vrs1}, v{vrs2}"),
             Instruction::VFSUB_VV { vrd, vrs1, vrs2 } => write!(f, "vfsub.vv v{vrd}, v{vrs1}, v{vrs2}"),
             Instruction::VFMUL_VV { vrd, vrs1, vrs2 } => write!(f, "vfmul.vv v{vrd}, v{vrs1}, v{vrs2}"),

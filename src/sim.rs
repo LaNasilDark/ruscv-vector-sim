@@ -189,7 +189,7 @@ impl Simulator {
                         // 处理完Inst::Mem后再次添加
                         // self.memory_unit.debug_port_status();
                         // debug!("Memory instruction issued successfully, PC advanced");
-                        debug!("Memory unit issued instruction: {:?} at cycle {}, PC advanced", mem_inst.raw, current_cycle);
+                        debug!("Memory unit issued instruction: {:?} at cycle {}, PC advanced", mem_inst.raw, current_cycle);  //TODO: update lifecycle info
                     } else {
                         debug!("Memory unit cannot accept new instruction yet, memory instruction waiting");
                     }

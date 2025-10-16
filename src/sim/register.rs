@@ -559,7 +559,7 @@ impl RegisterFile {
                     }
                 },
                 RegisterType::VectorRegister(id) => {
-                    // 🔧 关键修复：检查向量寄存器是否有未完成的写任务
+                    //修复：检查向量寄存器是否有未完成的写任务
                     let current_write_count = self.vector_registers[id as usize].get_write_count();
                     if current_write_count > 0 {
                         debug!("Cannot issue VSE: vector register {} has {} unfinished write tasks", 
