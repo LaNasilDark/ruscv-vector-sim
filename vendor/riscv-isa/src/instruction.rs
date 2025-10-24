@@ -336,6 +336,7 @@ pub enum Instruction {
     
     VADD_VV {vrd : u32, vrs1: u32, vrs2: u32},
     VMUL_VX {vrd : u32, rs1: u32, vrs2: u32},
+    VMUL_VV {vrd : u32, vrs1: u32, vrs2: u32},
     VFADD_VV {vrd : u32, vrs1: u32, vrs2: u32},
     VFSUB_VV {vrd : u32, vrs1: u32, vrs2: u32},
     VFMUL_VV {vrd : u32, vrs1: u32, vrs2: u32},

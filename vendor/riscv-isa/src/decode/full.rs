@@ -502,6 +502,7 @@ pub fn decode(code: u32, target: &Target) -> Instruction {
         },
         (Op::OPV, OPV::OPMVV, _) => {
             match funct6 {
+                0b100101 => VMUL_VV { vrd: rd, vrs1: rs1, vrs2: rs2 },
                 _ => unimplemented!()
             }
         },
