@@ -41,6 +41,11 @@ impl FuncInst {
                 vec![RegisterType::VectorRegister(vrs1), RegisterType::VectorRegister(vrs2)],
                 FunctionUnitKeyType::VectorAlu)
             },
+            Instruction::VADD_VX { vrd, rs1, vrs2 } => {
+                (RegisterType::VectorRegister(vrd),
+                vec![RegisterType::ScalarRegister(rs1), RegisterType::VectorRegister(vrs2)],
+                FunctionUnitKeyType::VectorAlu)
+            },
             Instruction::VMUL_VX { vrd, rs1, vrs2 } => {
                 (RegisterType::VectorRegister(vrd),
                 vec![RegisterType::ScalarRegister(rs1), RegisterType::VectorRegister(vrs2)],
@@ -72,6 +77,11 @@ impl FuncInst {
                 (RegisterType::VectorRegister(vrd),
                 vec![RegisterType::VectorRegister(vrd), RegisterType::VectorRegister(vrs1), RegisterType::VectorRegister(vrs2)],
                 FunctionUnitKeyType::VectorMacc)
+            },
+            Instruction::VREDSUM_VS { vrd, vrs1, vrs2 } => {
+                (RegisterType::VectorRegister(vrd),
+                vec![RegisterType::VectorRegister(vrs1), RegisterType::VectorRegister(vrs2)],
+                FunctionUnitKeyType::VectorAlu)
             },
             Instruction::VFSLIDE1DOWN_VF { vrd, frs1, vrs2 }
             | Instruction::VFSLIDE1UP_VF { vrd, frs1, vrs2 } => {

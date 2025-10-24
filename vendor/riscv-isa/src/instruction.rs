@@ -335,12 +335,15 @@ pub enum Instruction {
     VSE { vrd: u32, rs1: u32, width: u32},
     
     VADD_VV {vrd : u32, vrs1: u32, vrs2: u32},
+    VADD_VX {vrd : u32, rs1: u32, vrs2: u32},
     VMUL_VX {vrd : u32, rs1: u32, vrs2: u32},
     VMUL_VV {vrd : u32, vrs1: u32, vrs2: u32},
     VFADD_VV {vrd : u32, vrs1: u32, vrs2: u32},
     VFSUB_VV {vrd : u32, vrs1: u32, vrs2: u32},
     VFMUL_VV {vrd : u32, vrs1: u32, vrs2: u32},
     VFMACC_VV {vrd : u32, vrs1: u32, vrs2: u32},
+    
+    VREDSUM_VS {vrd : u32, vrs1: u32, vrs2: u32},
     
     VFSLIDE1UP_VF {vrd : u32, frs1: u32, vrs2: u32},
     VFSLIDE1DOWN_VF {vrd : u32, frs1: u32, vrs2: u32},
