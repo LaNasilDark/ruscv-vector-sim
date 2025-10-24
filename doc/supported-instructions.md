@@ -15,10 +15,12 @@
 | :------------------ | :-------------- | :---------------------------- | :-------------- | :------------------- | :-------------------------------- | :------------------------------------------ |
 | `VADD.VV`         | vrd, vrs1, vrs2 | Vector Integer Add            | VectorAlu       | Vector Register      | 2 Vector Registers                | Vector-vector integer addition              |
 | `VADD.VX`         | vrd, rs1, vrs2  | Vector-Scalar Integer Add     | VectorAlu       | Vector Register      | Scalar + Vector Register          | vrd[i] = rs1 + vrs2[i]                      |
+| `VSUB.VV`         | vrd, vrs1, vrs2 | Vector Integer Subtract       | VectorAlu       | Vector Register      | 2 Vector Registers                | vrd[i] = vrs1[i] - vrs2[i]                  |
 | `VFADD.VV`        | vrd, vrs1, vrs2 | Vector FP Add                 | VectorAlu       | Vector Register      | 2 Vector Registers                | Vector-vector floating-point addition       |
 | `VFMUL.VV`        | vrd, vrs1, vrs2 | Vector FP Multiply            | VectorMul       | Vector Register      | 2 Vector Registers                | Vector-vector floating-point multiplication |
 | `VMUL.VV`         | vrd, vrs1, vrs2 | Vector Integer Multiply       | VectorMul       | Vector Register      | 2 Vector Registers                | Vector-vector integer multiplication        |
 | `VREDSUM.VS`      | vrd, vrs2, vrs1 | Vector Reduction Sum          | VectorAlu       | Vector Register      | 2 Vector Registers                | vrd[0] = sum(vrs2[*]) + vrs1[0]             |
+| `VMV.V.V`         | vrd, vrs1       | Vector Move Vector-to-Vector  | VectorAlu       | Vector Register      | 1 Vector Register                 | vrd = vrs1 (copy vector)                    |
 | `VFMACC.VV`       | vrd, vrs1, vrs2 | Vector FP Multiply-Accumulate | VectorMacc      | Vector Register      | 3 Vector Registers (incl. dest.)  | vrd = vrd + (vrs1 * vrs2)                   |
 | `VFSLIDE1DOWN.VF` | vrd, frs1, vrs2 | Vector Slide 1 Down           | VectorSlide     | Vector Register      | FP Register + 2 Vector Registers* | Shift vector elements down by one           |
 | `VFSLIDE1UP.VF`   | vrd, frs1, vrs2 | Vector Slide 1 Up             | VectorSlide     | Vector Register      | FP Register + 2 Vector Registers* | Shift vector elements up by one             |

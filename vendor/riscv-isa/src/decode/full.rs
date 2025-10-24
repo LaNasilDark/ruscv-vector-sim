@@ -488,6 +488,7 @@ pub fn decode(code: u32, target: &Target) -> Instruction {
         (Op::OPV, OPV::OPIVV, _) => {
             match funct6 {
                 0b000000 => VADD_VV { vrd: rd, vrs1: rs1, vrs2: rs2 },
+                0b000010 => VSUB_VV { vrd: rd, vrs1: rs1, vrs2: rs2 },
                 0b010111 => VMV_V_V { vrd: rd, vrs1: rs1 },
                 _ => unimplemented!()
             }
