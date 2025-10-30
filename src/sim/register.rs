@@ -559,15 +559,27 @@ impl RegisterFile {
                     }
                 },
                 RegisterType::VectorRegister(id) => {
-                    //修复：检查向量寄存器是否有未完成的写任务
+                    // [CHAINING ENABLED] 允许 Store 在写指令未完成时执行 (chaining)
+                    // 不再要求 write_count == 0，这样 Store 可以逐步读取前一条指令产生的部分结果
                     let current_write_count = self.vector_registers[id as usize].get_write_count();
+                    
+                    // 获取当前寄存器的数据就绪情况
+                    let queue_len = self.vector_registers[id as usize].task_queue.len();
+                    let available_data = if !self.vector_registers[id as usize].task_queue.is_empty() {
+                        // 获取最后一个任务（写任务）的当前进度
+                        self.vector_registers[id as usize].task_queue.back().unwrap().current_place
+                    } else {
+                        0
+                    };
+                    
                     if current_write_count > 0 {
-                        debug!("Cannot issue VSE: vector register {} has {} unfinished write tasks", 
+                        debug!("[STORE-CHAINING] Allowing VSE to issue while vector register {} has {} unfinished write tasks (chaining enabled)", 
                                id, current_write_count);
-                        return false;
+                        debug!("[STORE-CHAINING] Vector register {} data availability: {}/{} bytes ready, queue length: {}", 
+                               id, available_data, self.vector_registers[id as usize].total_bytes, queue_len);
                     }
                     
-                    // 同时检查读端口限制
+                    // 检查读端口限制
                     let config = crate::config::SimulatorConfig::get_global_config()
                         .expect("Global config not initialized");
                     let read_ports_limit = config.get_vector_register_read_ports_limit();
@@ -577,6 +589,20 @@ impl RegisterFile {
                         debug!("Cannot issue VSE: vector register {} read count would exceed limit ({} + 1 > {})", 
                                id, current_read_count, read_ports_limit);
                         return false;
+                    }
+                    
+                    // [CHAINING SAFETY] 检查是否至少有一些数据可读
+                    // 如果 task_queue 为空，说明还没有任何写任务，不应该发射 Store
+                    if self.vector_registers[id as usize].task_queue.is_empty() {
+                        debug!("Cannot issue VSE: vector register {} has no tasks in queue (no data available yet)", id);
+                        return false;
+                    }
+                    
+                    // [CHAINING INFO] 注意：VSE的执行速度将取决于前导指令的数据生产速度
+                    // 如果前导指令还在执行中，VSE将以前导指令的速度逐步读取数据
+                    if available_data < self.vector_registers[id as usize].total_bytes {
+                        debug!("[STORE-CHAINING] VSE will start with partial data ({} bytes available), execution speed depends on producer", 
+                               available_data);
                     }
                 }
             }
