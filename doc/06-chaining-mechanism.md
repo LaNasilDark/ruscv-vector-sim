@@ -1,12 +1,12 @@
-## 当前模拟器的 Chaining 机制
+## Current Simulator's Chaining Mechanism
 
 ---
 
-## 1. 核心设计理念
+## 1. Core Design Philosophy
 
-### 1.1 数据结构设计
+### 1.1 Data Structure Design
 
-**`register.rs`文件中定义的队列式的任务管理系统**:
+**Queue-based task management system defined in `register.rs` file**:
 
 ```rust
 pub struct VectorRegister {
@@ -15,62 +15,62 @@ pub struct VectorRegister {
     pub write_count: u32,
     pub read_count: u32,
     pub current_index: usize,
-    pub task_queue: VecDeque<RegisterTask>  // 关键!
+    pub task_queue: VecDeque<RegisterTask>  // KeyPoint
 }
 ```
 
-**`task_queue` 是 chaining 的核心**:
+**`task_queue` is the core of chaining**:
 
-- 每个向量寄存器维护一个任务队列
-- 队列中包含多个读/写任务
-- 任务从**前端添加** (`push_front`),从**后端移除** (`pop_back`)
-- 这形成了一个**生产者-消费者链**
+- Each vector register maintains a task queue
+- The queue contains multiple read/write tasks
+- Tasks are added from the **front** (`push_front`) and removed from the **back** (`pop_back`)
+- This forms a **producer-consumer chain**
 
-### 1.2 `task.rs` 文件中的RegisterTask 结构
+### 1.2 RegisterTask Structure in `task.rs` File
 
 ```rust
 pub struct RegisterTask {
-    pub current_place: u32,      // 当前处理进度(字节)
-    pub resource_index: usize,   // 对应的输入缓冲区索引
-    pub behavior: UnitBehavior,  // Read 或 Write
-    pub unit_key: UnitKeyType    // 关联的功能单元
+    pub current_place: u32,      // Current processing progress (bytes)
+    pub resource_index: usize,   // Corresponding input buffer index
+    pub behavior: UnitBehavior,  // Read or Write
+    pub unit_key: UnitKeyType    // Associated functional unit
 }
 ```
 
-这个设计允许:
+This design enables:
 
-- **追踪每个任务的进度** (`current_place`)
-- **支持多个依赖指令** (队列中可以有多个任务)
-- **区分读写行为** (Read/Write)
+- **Tracking progress of each task** (`current_place`)
+- **Supporting multiple dependent instructions** (multiple tasks can exist in the queue)
+- **Distinguishing read/write behavior** (Read/Write)
 
 ---
 
-## 2. Chaining 的具体实现
+## 2. Specific Implementation of Chaining
 
-### 2.1 元素级/Chunk 级转发
+### 2.1 Element-Level/Chunk-Level Forwarding
 
-**关键函数 register.rs 文件中的**:  `VectorRegister::handle_one_task()`
+**Key function in `register.rs` file**: `VectorRegister::handle_one_task()`
 
 ```rust
-//此处只截取函数部分关键内容
+// Only showing key portions of the function
 pub fn handle_one_task(&self, index: usize) -> Option<BufferEvent> {
     let forward_bytes = SimulatorConfig::get_global_config()
         .unwrap()
-        .get_maximum_forward_bytes()  // 配置项: maximum_forward_bytes = 32
+        .get_maximum_forward_bytes()  // Configuration: maximum_forward_bytes = 32
         .min(self.get_total_bytes() - q[index].current_place);
   
     match index == q.len() - 1 {
         true => {
-            // 最后一个任务: 可以转发 forward_bytes
+            // Last task: can forward forward_bytes
             Some(q[index].generate_event(forward_bytes))
         },
         false => {
-            // 中间任务: 只能转发到下一个任务的当前位置
+            // Intermediate task: can only forward up to next task's current position
             let mut update_length = q[index+1].current_place - q[index].current_place;
             update_length = update_length.min(forward_bytes);
   
             if update_length == 0 {
-                None  // 等待下一个任务消费更多数据
+                None  // Wait for next task to consume more data
             } else {
                 Some(q[index].generate_event(update_length))
             }
@@ -79,19 +79,19 @@ pub fn handle_one_task(&self, index: usize) -> Option<BufferEvent> {
 }
 ```
 
-1. **最后一个任务**(生产者): 可以自由地按 `maximum_forward_bytes` 转发数据
-2. **中间任务**(消费者): 只能转发已经被后续任务消费的数据
-3. **转发粒度**: 32 字节/周期 (可配置)
+1. **Last task** (producer): Can freely forward data according to `maximum_forward_bytes`
+2. **Intermediate task** (consumer): Can only forward data that has been consumed by subsequent tasks
+3. **Forwarding granularity**: 32 bytes/cycle (configurable)
 
-### 2.2 流水重叠执行
+### 2.2 Pipelined Overlapped Execution
 
-**关键机制 `function_unit.rs`文件中的**: `EventGenerator` 和 `generate_next_event()`函数
+**Key mechanism in `function_unit.rs` file**: `EventGenerator` and `generate_next_event()` function
 
 ```rust
 pub struct EventGenerator {
     func_inst: FuncInst,
     cycle_per_event: u32,
-    bytes_per_event: u32,      // 每次处理的字节数
+    bytes_per_event: u32,      // Bytes processed per event
     total_bytes: u32,
     processed_bytes: u32,
 }
@@ -101,10 +101,10 @@ pub struct EventGenerator {
 pub fn generate_next_event(&mut self, current_bytes: u32) -> Option<Event> {
     let bytes_this_event = self.bytes_per_event
         .min(self.total_bytes - self.processed_bytes)
-        .min(current_bytes - self.processed_bytes);  // 关键!
+        .min(current_bytes - self.processed_bytes);  // KeyPoint
   
     if bytes_this_event == 0 {
-        return None;  // 等待更多输入数据
+        return None;  // Wait for more input data
     }
   
     Some(Event {
@@ -115,17 +115,17 @@ pub fn generate_next_event(&mut self, current_bytes: u32) -> Option<Event> {
 }
 ```
 
-- `current_bytes`: 输入缓冲区中已就绪的字节数
-- 只有当 `current_bytes > processed_bytes` 时才生成新事件
-- **不需要等待整个向量完成**,有多少数据处理多少
+- `current_bytes`: Number of bytes ready in the input buffer
+- Only generates new events when `current_bytes > processed_bytes`
+- **No need to wait for entire vector completion**, processes as much data as available
 
-### 2.3 依赖管理
+### 2.3 Dependency Management
 
-**在 `register.rs`文件的 `RegisterFile::add_vector_task()` 中**:
+**In `RegisterFile::add_vector_task()` in `register.rs` file**:
 
 ```rust
 pub fn add_vector_task(&mut self, func_inst: &FuncInst) {
-    // 为源寄存器添加读任务
+    // Add read tasks for source registers
     func_inst.resource.iter().enumerate().for_each(|(i, r)| {
         match r {
             RegisterType::VectorRegister(id) => {
@@ -138,7 +138,7 @@ pub fn add_vector_task(&mut self, func_inst: &FuncInst) {
         }
     });
   
-    // 为目标寄存器添加写任务
+    // Add write task for destination register
     match &func_inst.destination {
         RegisterType::VectorRegister(id) => {
             self.vector_registers[*id as usize]
@@ -151,71 +151,71 @@ pub fn add_vector_task(&mut self, func_inst: &FuncInst) {
 }
 ```
 
-**依赖链的建立**:
+**Establishing dependency chains**:
 
 ```
 vadd.vv v1, v2, v3  ->  v1.task_queue = [Write(vadd)]
                         v2.task_queue = [Read(vadd)]
                         v3.task_queue = [Read(vadd)]
 
-vmul.vv v4, v1, v5  ->  v1.task_queue = [Read(vmul), Write(vadd)]  // 链接!
+vmul.vv v4, v1, v5  ->  v1.task_queue = [Read(vmul), Write(vadd)]  // Chained!
                         v4.task_queue = [Write(vmul)]
                         v5.task_queue = [Read(vmul)]
 ```
 
 ---
 
-## 3. 执行流程示例
+## 3. Execution Flow Example
 
-假设执行:
+Assume execution:
 
 ```assembly
-vadd.vv v1, v2, v3    # v1 = v2 + v3, 每个向量 256 字节
+vadd.vv v1, v2, v3    # v1 = v2 + v3, each vector 256 bytes
 vmul.vv v4, v1, v5    # v4 = v1 * v5
 ```
 
-### 时间线 (maximum_forward_bytes = 32):
+### Timeline (maximum_forward_bytes = 32):
 
-| Cycle | vadd 进度 | v1 写入 | vmul 进度 | v1 读取 | 说明                            |
-| ----- | --------- | ------- | --------- | ------- | ------------------------------- |
-| 0     | 0/256     | 0/256   | -         | -       | vadd 开始                       |
-| 1     | 32/256    | 32/256  | -         | -       | vadd 生成第一个 event           |
-| 2     | 64/256    | 64/256  | -         | -       | 继续处理                        |
-| 3     | 96/256    | 96/256  | 0/256     | 0/96    | **vmul 开始! (chaining)** |
-| 4     | 128/256   | 128/256 | 32/256    | 32/128  | **流水重叠**              |
-| 5     | 160/256   | 160/256 | 64/256    | 64/160  | 继续重叠                        |
-| ...   | ...       | ...     | ...       | ...     | ...                             |
+| Cycle | vadd Progress | v1 Write | vmul Progress | v1 Read | Description                       |
+| ----- | ------------- | -------- | ------------- | ------- | --------------------------------- |
+| 0     | 0/256         | 0/256    | -             | -       | vadd starts                       |
+| 1     | 32/256        | 32/256   | -             | -       | vadd generates first event        |
+| 2     | 64/256        | 64/256   | -             | -       | Continues processing              |
+| 3     | 96/256        | 96/256   | 0/256         | 0/96    | **vmul starts! (chaining)** |
+| 4     | 128/256       | 128/256  | 32/256        | 32/128  | **Pipelined overlap**       |
+| 5     | 160/256       | 160/256  | 64/256        | 64/160  | Continues overlapping             |
+| ...   | ...           | ...      | ...           | ...     | ...                               |
 
-**关键观察**:
+**Key observations**:
 
-- **Cycle 3**: vmul 不需要等 vadd 完成全部 256 字节
-- **Cycle 4-5**: vadd 和 vmul **同时执行** (流水重叠)
-- **v1 的读取进度**总是 ≤ **v1 的写入进度** (保证数据一致性)
+- **Cycle 3**: vmul doesn't need to wait for vadd to complete all 256 bytes
+- **Cycle 4-5**: vadd and vmul **execute simultaneously** (pipelined overlap)
+- **v1's read progress** is always ≤ **v1's write progress** (ensures data consistency)
 
 ---
 
-## 4. 配置参数的作用
+## 4. Role of Configuration Parameters
 
 ### `maximum_forward_bytes = 32`
 
-这是 **chaining 的粒度控制**:
+This controls **chaining granularity**:
 
-- **32 字节**: 意味着每个周期最多转发 32 字节
-- **太小** (如 8): chaining 效果有限,延迟降低不明显
-- **太大** (如 256): 可能导致缓冲区压力,功能单元冲突
-- **32 字节**: 是一个平衡点 (lane_number * sew/8 = 4 * 32/8 = 16,可以两周期处理一个 lane)
+- **32 bytes**: Means at most 32 bytes can be forwarded per cycle
+- **Too small** (e.g., 8): Limited chaining effect, latency reduction not significant
+- **Too large** (e.g., 256): May cause buffer pressure and functional unit conflicts
+- **32 bytes**: A balanced choice (lane_number * sew/8 = 4 * 32/8 = 16, can process one lane in two cycles)
 
 ### `bytes_per_event`
 
-在 `VectorFunctionUnit::new()` 中:
+In `VectorFunctionUnit::new()`:
 
 ```rust
-bytes_per_event = config.get_data_length()  // lane_number * sew/8 = 16 字节
+bytes_per_event = config.get_data_length()  // lane_number * sew/8 = 16 bytes
 ```
 
-这决定了**功能单元的吞吐量**:
+This determines **functional unit throughput**:
 
-- 每个 event 处理 16 字节
-- 配合 `maximum_forward_bytes = 32`,大约每 2 个周期可以转发一次
+- Each event processes 16 bytes
+- Combined with `maximum_forward_bytes = 32`, approximately one forward every 2 cycles
 
 ---
