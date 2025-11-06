@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 
 
 
@@ -139,7 +139,7 @@ impl VectorRegister {
         let index = self.current_handle_index();
         let total_bytes = self.get_total_bytes();
         let reg_type_info = self.get_register_type_info(); // 使用新方法获取寄存器类型信息
-        let mut q = self.task_queue_mut();
+        let q = self.task_queue_mut();
         
         debug!("Processing event result for {} Task [{}]: UnitKey: {:?}, Behavior: {:?}, Current Progress: {}/{} bytes", 
             reg_type_info, index, q[index].unit_key, q[index].behavior, q[index].current_place, total_bytes);
@@ -248,6 +248,12 @@ impl VectorRegister {
     }
 
 }
+impl Default for RegisterFile {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RegisterFile {
     pub fn new() -> Self {
         let mut scalar_registers = Vec::with_capacity(32);
@@ -327,15 +333,12 @@ impl RegisterFile {
         
         // 为源寄存器添加读任务并更新读计数
         func_inst.resource.iter().enumerate().for_each(|(i,r)| {
-            match r {
-                RegisterType::VectorRegister(id) => {
-                    let old_count = self.vector_registers[*id as usize].get_read_count();
-                    self.vector_registers[*id as usize].task_queue_mut().push_front(RegisterTask::new(i, UnitBehavior::Read , unit_key.clone()));
-                    self.vector_registers[*id as usize].increase_read_count();
-                    let new_count = self.vector_registers[*id as usize].get_read_count();
-                    debug!("[READ_COUNT_DEBUG] Vector register {} read count: {} -> {} (added read task)", id, old_count, new_count);
-                },
-                _ => {}
+            if let RegisterType::VectorRegister(id) = r {
+                let old_count = self.vector_registers[*id as usize].get_read_count();
+                self.vector_registers[*id as usize].task_queue_mut().push_front(RegisterTask::new(i, UnitBehavior::Read , unit_key.clone()));
+                self.vector_registers[*id as usize].increase_read_count();
+                let new_count = self.vector_registers[*id as usize].get_read_count();
+                debug!("[READ_COUNT_DEBUG] Vector register {} read count: {} -> {} (added read task)", id, old_count, new_count);
             }
         });
         

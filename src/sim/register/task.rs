@@ -1,4 +1,4 @@
-use crate::{config::SimulatorConfig, sim::unit::{buffer::{BufferEvent, BufferEventResult, ConsumerEvent, ProducerEvent, ConsumerEventResult, ProducerEventResult}, *}};
+use crate::sim::unit::{buffer::{BufferEvent, BufferEventResult, ConsumerEvent, ProducerEvent, ConsumerEventResult, ProducerEventResult}, *};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RegisterTask {
     pub current_place : u32,
@@ -31,10 +31,10 @@ impl RegisterTask {
     pub fn handle_result(&mut self, result : BufferEventResult) {
         match result {
             BufferEventResult::Consumer(ConsumerEventResult { consumed_bytes, remaining_bytes }) => {
-                self.current_place = self.current_place + consumed_bytes;
+                self.current_place += consumed_bytes;
             },
             BufferEventResult::Producer(ProducerEventResult { resource_index, accepted_length, remaining_bytes }) => {
-                self.current_place = self.current_place + accepted_length;
+                self.current_place += accepted_length;
             }
         }
     }

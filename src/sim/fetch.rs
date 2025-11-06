@@ -1,26 +1,28 @@
-
-
-use crate::types::*;
 use crate::inst::Inst;
 use log::debug;
 pub struct Fetch {
-    pc : usize,
-    inst_memory : Vec<riscv_isa::Instruction>
+    pc: usize,
+    inst_memory: Vec<riscv_isa::Instruction>,
+}
+
+impl Default for Fetch {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Fetch {
     pub fn new() -> Fetch {
         Fetch {
-            pc : 0,
-            inst_memory : Vec::new()
+            pc: 0,
+            inst_memory: Vec::new(),
         }
     }
 
-    pub fn load(&mut self, inst_memory : Vec<riscv_isa::Instruction>) {
+    pub fn load(&mut self, inst_memory: Vec<riscv_isa::Instruction>) {
         self.inst_memory = inst_memory;
     }
-    pub fn fetch(&mut self) -> Option<Inst>{
-
+    pub fn fetch(&mut self) -> Option<Inst> {
         while self.pc < self.inst_memory.len() {
             if let Some(inst) = Inst::new(self.inst_memory[self.pc]) {
                 return Some(inst);
@@ -29,7 +31,7 @@ impl Fetch {
         }
         None
     }
-    pub fn update_pc(&mut self, new_pc : usize) {
+    pub fn update_pc(&mut self, new_pc: usize) {
         self.pc = new_pc;
     }
 
@@ -45,13 +47,7 @@ impl Fetch {
     pub fn get_pc(&self) -> usize {
         self.pc
     }
-
 }
 
 #[cfg(test)]
-mod test {
-    use super::*;
-    use crate::inst::*;
-
-
-}
+mod test {}

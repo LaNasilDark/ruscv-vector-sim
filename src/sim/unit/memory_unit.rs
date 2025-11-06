@@ -1,50 +1,51 @@
-use std::fmt::Write;
-
-use crate::{config::SimulatorConfig, inst::mem::{Direction, MemInst}, sim::{register::RegisterType, unit::buffer::{BufferEvent, BufferEventResult, BufferPair, ResourceType}}};
-use goblin::pe::exception::Register;
+use crate::{
+    config::SimulatorConfig,
+    inst::mem::{Direction, MemInst},
+    sim::{
+        register::RegisterType,
+        unit::buffer::{BufferEvent, BufferEventResult, BufferPair, ResourceType},
+    },
+};
 use log::debug;
 
-
 pub struct LoadStoreUnit {
-    latency: u32,
-    max_access_width: u32,
-    read_port_buffer : Vec<BufferPair>,
-    write_port_buffer : Vec<BufferPair>,
-    read_port_used : Vec<Option<MemoryPortEventGenerator>>,
-    write_port_used : Vec<Option<MemoryPortEventGenerator>>
+    _latency: u32,
+    _max_access_width: u32,
+    read_port_buffer: Vec<BufferPair>,
+    write_port_buffer: Vec<BufferPair>,
+    read_port_used: Vec<Option<MemoryPortEventGenerator>>,
+    write_port_used: Vec<Option<MemoryPortEventGenerator>>,
 }
 
 type PortNumberIdType = usize;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MemoryUnitKeyType {
     Load(PortNumberIdType),
-    Store(PortNumberIdType)
+    Store(PortNumberIdType),
 }
 
 pub struct MemoryPortEventGenerator {
-    index : usize,
-    bytes_per_cycle : u32,
-    raw_inst : MemInst,
-    total_bytes : u32,
-    current_pos : u32,
+    _index: usize,
+    bytes_per_cycle: u32,
+    raw_inst: MemInst,
+    total_bytes: u32,
+    current_pos: u32,
 }
 
 impl MemoryPortEventGenerator {
-    pub fn new(index : usize, raw_inst : MemInst) -> Self {
+    pub fn new(index: usize, raw_inst: MemInst) -> Self {
         let config = SimulatorConfig::get_global_config().unwrap();
         Self {
-            index,
+            _index: index,
             bytes_per_cycle: config.get_max_access_width(),
             raw_inst,
             total_bytes: raw_inst.get_total_bytes(),
-            current_pos : 0,
+            current_pos: 0,
         }
     }
 }
 
 impl LoadStoreUnit {
-
-
     // 新增：判断特定端口是否可以接受新指令的函数
     pub fn can_port_accept_new_instruction(&self, dir: Direction, port_index: usize) -> bool {
         match dir {
@@ -53,29 +54,33 @@ impl LoadStoreUnit {
                 if self.read_port_used[port_index].is_some() {
                     return false;
                 }
-                
+
                 // 检查ResultBuffer是否为空
-                if let Some(ref destination) = self.read_port_buffer[port_index].result_buffer.destination {
+                if let Some(ref destination) =
+                    self.read_port_buffer[port_index].result_buffer.destination
+                {
                     if destination.current_size > 0 {
                         return false;
                     }
                 }
-                
+
                 true
-            },
+            }
             Direction::Write => {
                 // 检查端口是否被占用
                 if self.write_port_used[port_index].is_some() {
                     return false;
                 }
-                
+
                 // 检查ResultBuffer是否为空
-                if let Some(ref destination) = self.write_port_buffer[port_index].result_buffer.destination {
+                if let Some(ref destination) =
+                    self.write_port_buffer[port_index].result_buffer.destination
+                {
                     if destination.current_size > 0 {
                         return false;
                     }
                 }
-                
+
                 true
             }
         }
@@ -92,7 +97,7 @@ impl LoadStoreUnit {
                     }
                 }
                 false
-            },
+            }
             Direction::Write => {
                 // 查找可用的写端口
                 for i in 0..self.write_port_used.len() {
@@ -105,35 +110,43 @@ impl LoadStoreUnit {
         }
     }
     pub fn new(latency: u32, max_access_width: u32) -> LoadStoreUnit {
-        let read_port_count = SimulatorConfig::get_global_config().unwrap().get_memory_read_ports_limit();
-        let write_port_count = SimulatorConfig::get_global_config().unwrap().get_memory_write_ports_limit();
-    
+        let read_port_count = SimulatorConfig::get_global_config()
+            .unwrap()
+            .get_memory_read_ports_limit();
+        let write_port_count = SimulatorConfig::get_global_config()
+            .unwrap()
+            .get_memory_write_ports_limit();
+
         use crate::sim::unit::buffer::BufferOwnerType;
-        
+
         // 创建并初始化缓冲区和端口使用状态
         let mut read_port_buffer = Vec::with_capacity(read_port_count);
         let mut write_port_buffer = Vec::with_capacity(write_port_count);
         let mut read_port_used = Vec::with_capacity(read_port_count);
         let mut write_port_used = Vec::with_capacity(write_port_count);
-        
+
         // 初始化缓冲区和端口使用状态
         for i in 0..read_port_count {
-            read_port_buffer.push(BufferPair::new_with_owner(BufferOwnerType::MemoryUnit(MemoryUnitKeyType::Load(i))));
+            read_port_buffer.push(BufferPair::new_with_owner(BufferOwnerType::MemoryUnit(
+                MemoryUnitKeyType::Load(i),
+            )));
             read_port_used.push(None);
         }
-        
+
         for i in 0..write_port_count {
-            write_port_buffer.push(BufferPair::new_with_owner(BufferOwnerType::MemoryUnit(MemoryUnitKeyType::Store(i))));
+            write_port_buffer.push(BufferPair::new_with_owner(BufferOwnerType::MemoryUnit(
+                MemoryUnitKeyType::Store(i),
+            )));
             write_port_used.push(None);
         }
-    
+
         LoadStoreUnit {
-            latency,
-            max_access_width,
+            _latency: latency,
+            _max_access_width: max_access_width,
             read_port_buffer,
             write_port_buffer,
             read_port_used,
-            write_port_used
+            write_port_used,
         }
     }
 
@@ -141,19 +154,19 @@ impl LoadStoreUnit {
         LoadStoreUnit::new(config.latency, config.max_access_width)
     }
 
-    pub fn handle_buffer_event(&mut self, key : MemoryUnitKeyType, event : BufferEvent) -> BufferEventResult {
+    pub fn handle_buffer_event(
+        &mut self,
+        key: MemoryUnitKeyType,
+        event: BufferEvent,
+    ) -> BufferEventResult {
         let res = match key {
-            MemoryUnitKeyType::Load(i) => {
-                self.read_port_buffer[i].handle_buffer_event(event)
-            },
-            MemoryUnitKeyType::Store(i) => {
-                self.write_port_buffer[i].handle_buffer_event(event)
-            }
+            MemoryUnitKeyType::Load(i) => self.read_port_buffer[i].handle_buffer_event(event),
+            MemoryUnitKeyType::Store(i) => self.write_port_buffer[i].handle_buffer_event(event),
         };
 
         match res {
             Ok(r) => r,
-            Err(err) => panic!("Buffer event handling error: {}", err)
+            Err(err) => panic!("Buffer event handling error: {}", err),
         }
     }
 
@@ -162,22 +175,26 @@ impl LoadStoreUnit {
         let read_ports_empty = self.read_port_used.iter().all(|port| port.is_none());
         // 检查所有写端口是否都空闲
         let write_ports_empty = self.write_port_used.iter().all(|port| port.is_none());
-        
+
         // 只有当所有端口都空闲时，内存单元才被视为空闲
         read_ports_empty && write_ports_empty
     }
     pub fn handle_event_queue(&mut self) -> anyhow::Result<()> {
         // 第一步： 读口和写口分别传递数据
-        let mut finish_read_port : Vec<usize> = Vec::new();
+        let mut finish_read_port: Vec<usize> = Vec::new();
         for i in 0..self.read_port_used.len() {
             if let Some(ref mut port) = self.read_port_used[i] {
-                let update_bytes = (self.read_port_buffer[i].get_memory_input_current_bytes()? - port.current_pos).min(port.bytes_per_cycle);
+                let update_bytes = (self.read_port_buffer[i].get_memory_input_current_bytes()?
+                    - port.current_pos)
+                    .min(port.bytes_per_cycle);
                 if update_bytes > 0 {
                     port.current_pos += update_bytes;
                     self.read_port_buffer[i].increase_result(update_bytes)?;
                 }
                 // 判断读端口任务是否完成的条件
-                if port.current_pos == port.total_bytes && self.read_port_buffer[i].is_result_completed() {
+                if port.current_pos == port.total_bytes
+                    && self.read_port_buffer[i].is_result_completed()
+                {
                     // DEBUG: 读端口完成条件满足 - 当前位置等于总字节数且结果缓冲区已完成，输出完成的指令信息
                     debug!("Read port {} task completed: current_pos={}/{} bytes, result buffer completed={}, instruction: {:?}", 
                            i, port.current_pos, port.total_bytes, self.read_port_buffer[i].is_result_completed(), port.raw_inst);
@@ -193,24 +210,32 @@ impl LoadStoreUnit {
         finish_read_port.into_iter().for_each(|i| {
             // DEBUG: 清空读端口 - 释放资源，输出被清理的指令信息
             if let Some(ref port) = self.read_port_used[i] {
-                debug!("Clearing read port {}: releasing resources, completed instruction: {:?}", i, port.raw_inst);
+                debug!(
+                    "Clearing read port {}: releasing resources, completed instruction: {:?}",
+                    i, port.raw_inst
+                );
             } else {
                 debug!("Clearing read port {}: releasing resources", i);
             }
             self.read_port_used[i] = None;
             self.read_port_buffer[i].clear();
         });
-    
-        let mut finish_write_port : Vec<usize> = Vec::new();
+
+        let mut finish_write_port: Vec<usize> = Vec::new();
         for i in 0..self.write_port_used.len() {
             if let Some(ref mut port) = self.write_port_used[i] {
-                let update_bytes = (self.write_port_buffer[i].get_register_input_current_bytes()? - port.current_pos).min(port.bytes_per_cycle);
+                let update_bytes = (self.write_port_buffer[i]
+                    .get_register_input_current_bytes()?
+                    - port.current_pos)
+                    .min(port.bytes_per_cycle);
                 if update_bytes > 0 {
                     port.current_pos += update_bytes;
                     self.write_port_buffer[i].increase_result(update_bytes)?;
                 }
                 // 判断写端口任务是否完成的条件
-                if port.current_pos == port.total_bytes && self.write_port_buffer[i].is_result_completed() {
+                if port.current_pos == port.total_bytes
+                    && self.write_port_buffer[i].is_result_completed()
+                {
                     // DEBUG: 写端口完成条件满足 - 当前位置等于总字节数且结果缓冲区已完成，输出完成的指令信息
                     debug!("Write port {} task completed: current_pos={}/{} bytes, result buffer completed={}, instruction: {:?}", 
                            i, port.current_pos, port.total_bytes, self.write_port_buffer[i].is_result_completed(), port.raw_inst);
@@ -225,7 +250,10 @@ impl LoadStoreUnit {
         finish_write_port.into_iter().for_each(|i| {
             // DEBUG: 清空写端口 - 释放资源，输出被清理的指令信息
             if let Some(ref port) = self.write_port_used[i] {
-                debug!("Clearing write port {}: releasing resources, completed instruction: {:?}", i, port.raw_inst);
+                debug!(
+                    "Clearing write port {}: releasing resources, completed instruction: {:?}",
+                    i, port.raw_inst
+                );
             } else {
                 debug!("Clearing write port {}: releasing resources", i);
             }
@@ -233,109 +261,137 @@ impl LoadStoreUnit {
             // 清除当前指令信息
             self.write_port_buffer[i].clear();
         });
-        
-    
+
         Ok(())
     }
 
-    pub fn has_free_port(&self, dir : Direction) -> bool {
+    pub fn has_free_port(&self, dir: Direction) -> bool {
         match dir {
-            Direction::Read => {
-                self.read_port_used.iter().position(|used| used.is_none()).is_some()
-            },
-            Direction::Write => {
-                self.write_port_used.iter().position(|used| used.is_none()).is_some()
-            }
+            Direction::Read => self.read_port_used.iter().any(|used| used.is_none()),
+            Direction::Write => self.write_port_used.iter().any(|used| used.is_none()),
         }
     }
 
-    fn set_port_event(&mut self, mem_inst : MemInst) -> anyhow::Result<usize> {
+    fn set_port_event(&mut self, mem_inst: MemInst) -> anyhow::Result<usize> {
         match mem_inst.dir {
             Direction::Read => {
-                let port_index = self.read_port_used.iter().position(|used| used.is_none()).unwrap();
-                self.read_port_used[port_index] = Some(MemoryPortEventGenerator::new(port_index, mem_inst));
+                let port_index = self
+                    .read_port_used
+                    .iter()
+                    .position(|used| used.is_none())
+                    .unwrap();
+                self.read_port_used[port_index] =
+                    Some(MemoryPortEventGenerator::new(port_index, mem_inst));
                 Ok(port_index)
-            },
+            }
             Direction::Write => {
-                let port_index = self.write_port_used.iter().position(|used| used.is_none()).unwrap();
-                self.write_port_used[port_index] = Some(MemoryPortEventGenerator::new(port_index, mem_inst));
+                let port_index = self
+                    .write_port_used
+                    .iter()
+                    .position(|used| used.is_none())
+                    .unwrap();
+                self.write_port_used[port_index] =
+                    Some(MemoryPortEventGenerator::new(port_index, mem_inst));
                 Ok(port_index)
             }
         }
     }
-    pub fn issue(&mut self, mem_inst : MemInst, pc : usize) -> anyhow::Result<usize> {
-        let index = self.set_port_event(mem_inst.clone())?;
-        use crate::sim::unit::buffer::Resource;
+    pub fn issue(&mut self, mem_inst: MemInst, pc: usize) -> anyhow::Result<usize> {
+        let index = self.set_port_event(mem_inst)?;
         use crate::sim::unit::buffer::EnhancedResource;
+        use crate::sim::unit::buffer::Resource;
         match mem_inst.dir {
-        
             Direction::Read => {
-                self.read_port_buffer[index].set_input(vec![Resource::new(crate::sim::unit::buffer::ResourceType::Memory, mem_inst.get_total_bytes())])?;
+                self.read_port_buffer[index].set_input(vec![Resource::new(
+                    crate::sim::unit::buffer::ResourceType::Memory,
+                    mem_inst.get_total_bytes(),
+                )])?;
 
-                self.read_port_buffer[index].set_output(EnhancedResource::new(crate::sim::unit::buffer::ResourceType::Register(mem_inst.reg), mem_inst.get_total_bytes()), pc);
-                
+                self.read_port_buffer[index].set_output(
+                    EnhancedResource::new(
+                        crate::sim::unit::buffer::ResourceType::Register(mem_inst.reg),
+                        mem_inst.get_total_bytes(),
+                    ),
+                    pc,
+                );
+
                 // 记录当前正在处理的指令信息
-                self.read_port_buffer[index].set_current_instruction(crate::inst::Inst::Mem(mem_inst.clone()));
-            },
+                self.read_port_buffer[index]
+                    .set_current_instruction(crate::inst::Inst::Mem(mem_inst));
+            }
             Direction::Write => {
-                self.write_port_buffer[index].set_input(vec![Resource::new(crate::sim::unit::buffer::ResourceType::Register(mem_inst.reg), mem_inst.get_total_bytes())])?;
-                self.write_port_buffer[index].set_output(EnhancedResource::new(crate::sim::unit::buffer::ResourceType::Memory, mem_inst.get_total_bytes()), pc);
-                
+                self.write_port_buffer[index].set_input(vec![Resource::new(
+                    crate::sim::unit::buffer::ResourceType::Register(mem_inst.reg),
+                    mem_inst.get_total_bytes(),
+                )])?;
+                self.write_port_buffer[index].set_output(
+                    EnhancedResource::new(
+                        crate::sim::unit::buffer::ResourceType::Memory,
+                        mem_inst.get_total_bytes(),
+                    ),
+                    pc,
+                );
+
                 // 记录当前正在处理的指令信息
-                self.write_port_buffer[index].set_current_instruction(crate::inst::Inst::Mem(mem_inst.clone()));
+                self.write_port_buffer[index]
+                    .set_current_instruction(crate::inst::Inst::Mem(mem_inst));
             }
         }
 
         Ok(index)
     }
 
-        // 添加一个新函数，用于自动增加内存数据
+    // 添加一个新函数，用于自动增加内存数据
     pub fn auto_increase_memory_data(&mut self) -> anyhow::Result<()> {
         // 处理读端口
         for i in 0..self.read_port_used.len() {
             if let Some(ref port) = self.read_port_used[i] {
                 // 获取每周期可以从内存读取的字节数
                 let memory_bytes_per_cycle = port.bytes_per_cycle;
-                
 
-                    // 遍历 input_buffer 中的资源
+                // 遍历 input_buffer 中的资源
                 for resource in &mut self.read_port_buffer[i].input_buffer.resource {
                     // 只处理 Memory 类型的资源
                     if let ResourceType::Memory = resource.resource_type {
                         // 计算可以增加的字节数（不超过目标大小）
-                        let bytes_to_add = memory_bytes_per_cycle.min(resource.target_size - resource.current_size);
+                        let bytes_to_add = memory_bytes_per_cycle
+                            .min(resource.target_size - resource.current_size);
                         if bytes_to_add > 0 {
                             // 增加当前字节数
                             resource.current_size += bytes_to_add;
-                            debug!("Auto-increasing memory data: read port {}, adding {} bytes", i, bytes_to_add);
+                            debug!(
+                                "Auto-increasing memory data: read port {}, adding {} bytes",
+                                i, bytes_to_add
+                            );
                         }
                     }
                 }
-
             }
         }
 
         for i in 0..self.write_port_used.len() {
-            if let Some(ref port) = self.write_port_used[i] {
-                
-
+            if let Some(ref _port) = self.write_port_used[i] {
                 // 遍历 input_buffer 中的资源
                 for resource in &mut self.write_port_buffer[i].input_buffer.resource {
-
                     use crate::sim::register::RegisterType;
-                    if matches!(resource.resource_type, ResourceType::Register(RegisterType::ScalarRegister(_))) || matches!(resource.resource_type, ResourceType::Register(RegisterType::FloatRegister(_))) {
+                    if matches!(
+                        resource.resource_type,
+                        ResourceType::Register(RegisterType::ScalarRegister(_))
+                    ) || matches!(
+                        resource.resource_type,
+                        ResourceType::Register(RegisterType::FloatRegister(_))
+                    ) {
                         // 如果输入是普通的scalar register，那么直接把input buffer 填满
                         // 因为在检查的时候已经检查过当前寄存器没有在被写
-                        debug!("[WRITE PORT {i}] Auto-increasing input buffer with 8-bytes register");
+                        debug!(
+                            "[WRITE PORT {i}] Auto-increasing input buffer with 8-bytes register"
+                        );
                         resource.current_size = resource.target_size;
                     }
                 }
-
             }
         }
         Ok(())
-    
-        
     }
     // 添加一个新函数，用于自动增加写端口的ResultBuffer的consumed_bytes
     pub fn auto_increase_memory_write_consumed_bytes(&mut self) -> anyhow::Result<()> {
@@ -344,9 +400,11 @@ impl LoadStoreUnit {
             if let Some(ref port) = self.write_port_used[i] {
                 // 获取每周期可以写入内存的字节数
                 let memory_bytes_per_cycle = port.bytes_per_cycle;
-                
+
                 // 检查该端口的 result_buffer 中的目标资源是否为 Memory 类型
-                if let Some(ref mut destination) = self.write_port_buffer[i].result_buffer.destination {
+                if let Some(ref mut destination) =
+                    self.write_port_buffer[i].result_buffer.destination
+                {
                     if let ResourceType::Memory = destination.resource_type {
                         // 计算可以增加的已消耗字节数（不超过目前存储的字节大小）
                         let bytes_to_add = memory_bytes_per_cycle.min(destination.current_size);
@@ -354,36 +412,45 @@ impl LoadStoreUnit {
                             // 增加已消耗的字节数
                             destination.consumed_bytes += bytes_to_add;
                             // 减少当前字节数（如果有的话）
-                            destination.current_size = destination.current_size.saturating_sub(bytes_to_add);
+                            destination.current_size =
+                                destination.current_size.saturating_sub(bytes_to_add);
                             debug!("Auto-increasing memory write consumed bytes: write port {}, adding {} bytes", i, bytes_to_add);
                         }
                     }
                 }
             }
         }
-        
+
         Ok(())
     }
     // 添加在LoadStoreUnit实现中的其他函数之后
     pub fn debug_port_status(&self) {
         debug!("Memory unit port status:");
-        debug!("Read ports total: {}, Write ports total: {}", self.read_port_used.len(), self.write_port_used.len());
-        
+        debug!(
+            "Read ports total: {}, Write ports total: {}",
+            self.read_port_used.len(),
+            self.write_port_used.len()
+        );
+
         // 显示读端口状态
         for (i, port) in self.read_port_used.iter().enumerate() {
             if let Some(ref port_gen) = port {
-                debug!("Read port {}: Occupied - Instruction: {:?}, Processed: {}/{} bytes", 
-                      i, port_gen.raw_inst.raw, port_gen.current_pos, port_gen.total_bytes);
+                debug!(
+                    "Read port {}: Occupied - Instruction: {:?}, Processed: {}/{} bytes",
+                    i, port_gen.raw_inst.raw, port_gen.current_pos, port_gen.total_bytes
+                );
             } else {
                 debug!("Read port {}: Idle", i);
             }
         }
-        
+
         // 显示写端口状态
         for (i, port) in self.write_port_used.iter().enumerate() {
             if let Some(ref port_gen) = port {
-                debug!("Write port {}: Occupied - Instruction: {:?}, Processed: {}/{} bytes", 
-                      i, port_gen.raw_inst.raw, port_gen.current_pos, port_gen.total_bytes);
+                debug!(
+                    "Write port {}: Occupied - Instruction: {:?}, Processed: {}/{} bytes",
+                    i, port_gen.raw_inst.raw, port_gen.current_pos, port_gen.total_bytes
+                );
             } else {
                 debug!("Write port {}: Idle", i);
             }
@@ -394,10 +461,11 @@ impl LoadStoreUnit {
         let mut res = vec![];
         for i in 0..self.read_port_used.len() {
             if let Some(p) = &mut self.read_port_used[i] {
-                if self.read_port_buffer[i].result_buffer.all_data_ready() {
-                    if matches!(p.raw_inst.reg, RegisterType::FloatRegister(_)) || matches!(p.raw_inst.reg, RegisterType::ScalarRegister(_)) {
-                        res.push(p.raw_inst.reg);
-                    }
+                if self.read_port_buffer[i].result_buffer.all_data_ready()
+                    && (matches!(p.raw_inst.reg, RegisterType::FloatRegister(_))
+                        || matches!(p.raw_inst.reg, RegisterType::ScalarRegister(_)))
+                {
+                    res.push(p.raw_inst.reg);
                 }
             }
         }

@@ -1,6 +1,6 @@
 use std::fs::File;
 use anyhow::{anyhow, Context, Result};
-use goblin::elf::{Elf, program_header::PT_LOAD};
+use goblin::elf::Elf;
 use log::debug;
 use std::io::Read;
 

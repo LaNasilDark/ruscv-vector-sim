@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::inst::Inst;
-use crate::inst::{func::FuncInst, MemoryPlace};
+use crate::inst::func::FuncInst;
 
 use crate::sim::register::RegisterType;
 use crate::sim::unit::buffer::{BufferEvent, BufferEventResult, BufferPair, ResourceType};
@@ -25,7 +24,7 @@ pub enum FunctionUnitKeyType {
 
 pub enum FunctionUnitType {
     Common(CommonFunctionUnit),
-    Vector(VectorFunctionUnit)
+    Vector(Box<VectorFunctionUnit>)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,7 +89,7 @@ impl EventGenerator {
         
         let event = Event {
             remained_cycle: self.cycle_per_event,
-            target_register: self.func_inst.destination.clone(),
+            target_register: self.func_inst.destination,
             result_bytes: bytes_this_event,
         };
     
@@ -200,6 +199,7 @@ impl VectorFunctionUnit {
         !self.occupied
     }
 
+    #[allow(dead_code)]
     pub(crate) fn is_result_buffer_stale(&self) -> ResultBufferCheckResult{ 
         if self.handle_pc.is_none() {
             return ResultBufferCheckResult::NoTaskInUnit;
@@ -208,34 +208,34 @@ impl VectorFunctionUnit {
         if let Some(pc) = self.buffer_pair.result_buffer.handle_pc {
             if pc != current_pc {
                 if self.buffer_pair.result_buffer.is_completed() {
-                    return ResultBufferCheckResult::Stale(ResultBufferTask {
+                    ResultBufferCheckResult::Stale(ResultBufferTask {
                         inst : self.current_inst.clone().unwrap(),
-                    });
+                    })
                 } else {
-                    return ResultBufferCheckResult::WaitToComplete
+                    ResultBufferCheckResult::WaitToComplete
                 }
             } else {
-                return ResultBufferCheckResult::SameWithUnit
+                ResultBufferCheckResult::SameWithUnit
             }
         } else {
-            return ResultBufferCheckResult::NoTaskInBuffer(ResultBufferTask { inst: self.current_inst.clone().unwrap() })
+            ResultBufferCheckResult::NoTaskInBuffer(ResultBufferTask { inst: self.current_inst.clone().unwrap() })
         }
 
     }
+    #[allow(dead_code)]
     pub(crate) fn check_result_buffer(&mut self) -> anyhow::Result<ResultBufferCheckResult> {
-        return Ok(self.is_result_buffer_stale());
+        Ok(self.is_result_buffer_stale())
     }
 
+    #[allow(dead_code)]
     pub(crate) fn set_result_buffer(&mut self) -> anyhow::Result<()> {
         let func_inst = self.current_inst.as_ref().unwrap();
-        self.buffer_pair.set_output(EnhancedResource::new(ResourceType::Register(func_inst.destination.clone()), func_inst.destination.get_bytes()), self.handle_pc.unwrap());
+        self.buffer_pair.set_output(EnhancedResource::new(ResourceType::Register(func_inst.destination), func_inst.destination.get_bytes()), self.handle_pc.unwrap());
         Ok(())
     }
+    #[allow(dead_code)]
     pub(crate) fn is_vector(&self) -> bool {
-        match self.unit_type {
-            FunctionUnitKeyType::VectorAlu | FunctionUnitKeyType::VectorMul | FunctionUnitKeyType::VectorMacc | FunctionUnitKeyType::VectorSlide => true,
-            _ => false
-        }
+        matches!(self.unit_type, FunctionUnitKeyType::VectorAlu | FunctionUnitKeyType::VectorMul | FunctionUnitKeyType::VectorMacc | FunctionUnitKeyType::VectorSlide)
     }
     pub fn handle_event(&mut self, current_cycle: u32) -> anyhow::Result<()>{
         debug!("[{:?}] Starting handle_event: event_queue_size={}, occupied={}", 
@@ -251,14 +251,14 @@ impl VectorFunctionUnit {
         );
     
         // 清除队列最后的事件
-        let mut completed_events = 0;
+        let mut _completed_events = 0;
         while let Some(event) = self.event_queue.back() {
             if event.remained_cycle == 0 {
                 debug!("[{:?}] Event completed: target_register={:?}, result_bytes={} bytes", 
                        self.unit_type, event.target_register, event.result_bytes);
                 self.buffer_pair.increase_result(event.result_bytes)?;
                 self.event_queue.pop_back();
-                completed_events += 1;
+                _completed_events += 1;
             } else {
                 break;
             }
@@ -316,7 +316,7 @@ impl VectorFunctionUnit {
     }
 
     fn set_occupied(&mut self) {
-        assert!(self.occupied == false);
+        assert!(!self.occupied);
         self.occupied = true;
     }
     pub fn issue(&mut self, func_inst : FuncInst, pc: usize) -> anyhow::Result<()> {
@@ -346,13 +346,13 @@ impl VectorFunctionUnit {
         self.current_event = Some(EventGenerator::new(func_inst.clone(), calc_func_cycle(&func_inst), self.bytes_per_event, total_bytes));
         use crate::sim::unit::buffer::EnhancedResource;
         use crate::sim::unit::buffer::Resource;
-        self.buffer_pair.set_input(func_inst.resource.iter().map(|r| Resource::new(ResourceType::Register(r.clone()), r.get_bytes())).collect::<Vec<_>>())?;
+        self.buffer_pair.set_input(func_inst.resource.iter().map(|r| Resource::new(ResourceType::Register(*r), r.get_bytes())).collect::<Vec<_>>())?;
 
         // Set pc for the current instruction
         self.handle_pc = Some(pc);
 
 
-        self.buffer_pair.set_output(EnhancedResource::new(ResourceType::Register(func_inst.destination.clone()), func_inst.destination.get_bytes()), pc);
+        self.buffer_pair.set_output(EnhancedResource::new(ResourceType::Register(func_inst.destination), func_inst.destination.get_bytes()), pc);
         
         // 记录当前正在处理的指令信息
         self.buffer_pair.set_current_instruction(crate::inst::Inst::Func(func_inst.clone()));
@@ -390,7 +390,7 @@ impl CommonFunctionUnit {
         }
     }
     
-    pub fn issue(&mut self, func_inst: FuncInst, pc: usize) -> anyhow::Result<()> {
+    pub fn issue(&mut self, func_inst: FuncInst, _pc: usize) -> anyhow::Result<()> {
         self.occupied = true;
         self.current_inst = Some(func_inst);
         Ok(())
@@ -427,7 +427,7 @@ impl CommonFunctionUnit {
             if event.remained_cycle == 0 {
                 debug!("[{:?}] Event completed: target_register={:?}, result_bytes={} bytes", 
                        self.unit_type, event.target_register, event.result_bytes);
-                end_event.push(event.target_register.clone());
+                end_event.push(event.target_register);
                 self.event_queue.pop_back();
             } else {
                 break;
@@ -444,7 +444,7 @@ impl CommonFunctionUnit {
             
             let event = Event {
                 remained_cycle: latency,
-                target_register: func_inst.destination.clone(),
+                target_register: func_inst.destination,
                 result_bytes,
             };
             

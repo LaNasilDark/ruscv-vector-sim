@@ -1,10 +1,7 @@
-use std::{fmt, sync::{Arc, Mutex}};
 
-use crate::sim::unit::function_unit::FunctionUnitKeyType;
 pub(crate) mod func;
 pub(crate) mod mem;
 
-use crate::config::SimulatorConfig;
 use func::FuncInst;
 use riscv_isa::Instruction;
 use mem::MemInst;
