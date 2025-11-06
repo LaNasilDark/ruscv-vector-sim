@@ -4,7 +4,7 @@
 _start:
 
 	# Same destination & WAR
-	vsetivli x0, 8, e32, m1, ta, ma
+	vsetivli x0, 8, e32, m1, ta, ma # 0x0
 
 	vle32.v v2, (a2)
 	vle32.v v3, (a3)
@@ -20,7 +20,7 @@ _start:
 
 
 	# WAR
-	vsetivli x0, 8, e32, m1, ta, ma
+	vsetivli x0, 8, e32, m1, ta, ma # 0x28
 
 	vle32.v v2, (a1)
 	vle32.v v1, (a0)
@@ -32,7 +32,7 @@ _start:
 
 
 	# bunch of dependencies & RAW
-	vsetivli x0, 8, e32, m1, ta, ma
+	vsetivli x0, 8, e32, m1, ta, ma # 0x44
 
 	vle32.v v0, (a0)     
 	vle32.v v1, (a1)    
@@ -46,7 +46,7 @@ _start:
 
 
 	# WAW
-	vsetivli x0, 8, e32, m1, ta, ma
+	vsetivli x0, 8, e32, m1, ta, ma # 0x60
 
 	vle32.v v2, (a0)
 	vle32.v v3, (a1)
@@ -59,7 +59,7 @@ _start:
 
 
 	# Loading same address
-	vsetivli x0, 8, e32, m1, ta, ma
+	vsetivli x0, 8, e32, m1, ta, ma # 0x80
 
 	vle32.v v1, (a0)
 	vle32.v v2, (a1)
@@ -67,5 +67,4 @@ _start:
 	vse32.v v3, (a2)       
 	vle32.v v4, (a2)        # load same addr 
 	vadd.vv v5, v3, v4    
-	vse32.v v5, (a3)
-	
+	vse32.v v5, (a3) # 0x9c
