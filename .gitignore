@@ -5,3 +5,4 @@ Cargo.lock
 *.pdf
 /analysis/parser_report
 /trash
+/report/image

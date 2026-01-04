@@ -37,7 +37,7 @@ lane_number = 8 # dl
 [vector_register.ports]
 read_ports_limit = 2
 # read_ports_limit = 1 # if you want unlimited ports number, please change this number large enough, like 64 or some number else. Number of simultaneous read ports for one vector register.
-write_ports_limit = 2 # I believe that a write port is absolutely sufficient when the compiler allocates registers reasonably. However, if some odd instruction streams are constructed, increasing this value can also be considered. Number of simultaneous write ports for one vector register
+write_ports_limit = 1 # I believe that a write port is absolutely sufficient when the compiler allocates registers reasonably. However, if some odd instruction streams are constructed, increasing this value can also be considered. Number of simultaneous write ports for one vector register
 
 
 [buffer]
